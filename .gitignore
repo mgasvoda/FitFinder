@@ -1,4 +1,9 @@
 .windsurfrules
 /frontend/node_modules
-/backend/venv
 /frontend/.next
+/backend/uv.lock
+/backend/.venv
+
+
+**/__pycache__
+fitfinder.db

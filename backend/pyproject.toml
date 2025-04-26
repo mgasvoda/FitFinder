@@ -1,0 +1,17 @@
+[project]
+name = "fitfinder-backend"
+version = "0.1.0"
+description = "Backend for FitFinder"
+authors = [
+    { name="Your Name", email="your@email.com" }
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "langgraph",
+    "chromadb",
+    "sqlalchemy",
+    "pytest",
+    "python-multipart"
+]
