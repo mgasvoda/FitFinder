@@ -7,10 +7,14 @@ export async function uploadItem(formData: FormData) {
   return res.json();
 }
 
-export async function chatWithAssistant(formData: FormData) {
+export async function chatWithAssistant(prompt: string, optional_image_url?: string) {
+  const body = JSON.stringify({ prompt, optional_image_url });
   const res = await fetch('/api/chat', {
     method: 'POST',
-    body: formData,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body,
   });
   if (!res.ok) throw new Error('Failed to chat with assistant');
   return res.json();

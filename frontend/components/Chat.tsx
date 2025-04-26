@@ -20,12 +20,8 @@ export default function Chat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onSubmit: SubmitHandler<ChatInputs> = (data) => {
-    const formData = new FormData();
-    formData.append('prompt', data.prompt);
-    if (data.image && data.image.length > 0) {
-      formData.append('image', data.image[0]);
-    }
-    mutation.mutate(formData);
+    // Only send prompt for now; optional_image_url can be added if needed
+    mutation.mutate(data.prompt);
   };
 
   return (
