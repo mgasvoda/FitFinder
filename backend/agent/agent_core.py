@@ -39,11 +39,19 @@ def upload_item(image: UploadFile = File(...)):
 # POST /api/chat
 @agent_router.post("/chat", response_model=ChatResponse)
 def chat_endpoint(req: ChatRequest):
+    # Logging the incoming request
+    print(f"Backend received chat request: {req}")
+    
     # Skeleton: call agent logic
     # TODO: Integrate LangGraph agent
     response_text = "This is a placeholder response."
     matching_outfits = search_outfits(req.prompt, req.optional_image_url)
-    return ChatResponse(response_text=response_text, matching_outfits=matching_outfits)
+    
+    # Logging the response
+    response = ChatResponse(response_text=response_text, matching_outfits=matching_outfits)
+    print(f"Backend sending response: {response}")
+    
+    return response
 
 # GET /api/items/{item_id}
 @agent_router.get("/items/{item_id}", response_model=ItemResponse)
