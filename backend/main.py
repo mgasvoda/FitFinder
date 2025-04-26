@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.agent.agent_core import agent_router
 from backend.db.models import Base, engine
+from backend.db import vector_store  # Import to initialize ChromaDB collections
 import os
 
 app = FastAPI(title="FitFinder Backend")

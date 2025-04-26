@@ -6,12 +6,16 @@ authors = [
     { name="Your Name", email="your@email.com" }
 ]
 dependencies = [
-    "fastapi",
-    "uvicorn",
-    "pydantic",
-    "langgraph",
-    "chromadb",
-    "sqlalchemy",
-    "pytest",
-    "python-multipart"
+    "chromadb>=1.0.7",
+    "fastapi>=0.95.2",
+    "filetype>=1.2.0",
+    "langgraph>=0.1.5",
+    "pillow>=11.2.1",
+    "pydantic>=2.5.2",
+    "pytest>=8.3.5",
+    "python-multipart>=0.0.20",
+    "sqlalchemy>=2.0.40",
+    "torch>=2.7.0",
+    "transformers>=4.51.3",
+    "uvicorn>=0.34.2",
 ]
