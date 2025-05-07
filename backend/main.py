@@ -21,6 +21,8 @@ os.makedirs("images", exist_ok=True)
 
 # DB init
 Base.metadata.create_all(bind=engine)
+# ChromaDB embedding collections init
+vector_store.init_chroma_collections()
 
 # Mount agent (API) router
 app.include_router(agent_router, prefix="/api")

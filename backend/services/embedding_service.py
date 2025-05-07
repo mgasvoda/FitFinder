@@ -125,6 +125,8 @@ def get_multimodal_embedding(text: Optional[str] = None, image: Optional[Union[s
     Returns:
         List of floats representing the combined embedding vector
     """
+    print("Generating multimodal embedding")
+
     # Get individual embeddings
     text_embedding = get_text_embedding(text) if text else None
     image_embedding = get_image_embedding(image) if image else None
@@ -133,10 +135,13 @@ def get_multimodal_embedding(text: Optional[str] = None, image: Optional[Union[s
     if text_embedding and image_embedding:
         # Simple average of the two embeddings
         combined = np.mean([np.array(text_embedding), np.array(image_embedding)], axis=0)
+        print("Combined embedding:", combined)
         return combined.tolist()
     elif text_embedding:
+        print("Text embedding:", text_embedding)
         return text_embedding
     elif image_embedding:
+        print("Image embedding:", image_embedding)
         return image_embedding
     else:
         # Return zeros if no inputs provided

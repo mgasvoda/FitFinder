@@ -2,11 +2,12 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from backend.agent.tools.image_captioner import caption_image
-from backend.agent.tools.outfit_searcher import search_outfits, search_clothing_items
 from backend.agent.tools.image_storage import store_image, remove_image
 from backend.db import crud, models
 from backend.db.models import get_db
 from sqlalchemy.orm import Session
+import os
+# from backend.agent.langgraph_agent import chat
 import uuid
 
 agent_router = APIRouter()
@@ -64,33 +65,30 @@ def upload_item(image: UploadFile = File(...), db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to upload item: {str(e)}")
 
 # POST /api/chat
-@agent_router.post("/chat", response_model=ChatResponse)
-def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
-    try:
-        # Logging the incoming request
-        print(f"Backend received chat request: {req}")
+# @agent_router.post("/chat", response_model=ChatResponse)
+# def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
+#     try:
+#         # Logging the incoming request
+#         print(f"Backend received chat request: {req}")
         
-        # Search for matching outfits based on the prompt
-        matching_outfits = search_outfits(req.prompt, req.optional_image_url)
+#         # Search for matching outfits based on the prompt
+#         response_text, matching_outfits = chat(req.prompt)
         
-        # TODO: Integrate LangGraph agent for more sophisticated responses
-        response_text = f"I found {len(matching_outfits)} outfits that match your request."
+#         # Save chat history
+#         crud.create_chat_history(
+#             db=db,
+#             prompt=req.prompt,
+#             response=response_text,
+#             image_url=req.optional_image_url
+#         )
         
-        # Save chat history
-        crud.create_chat_history(
-            db=db,
-            prompt=req.prompt,
-            response=response_text,
-            image_url=req.optional_image_url
-        )
+#         # Logging the response
+#         response = ChatResponse(response_text=response_text, matching_outfits=matching_outfits)
+#         print(f"Backend sending response: {response}")
         
-        # Logging the response
-        response = ChatResponse(response_text=response_text, matching_outfits=matching_outfits)
-        print(f"Backend sending response: {response}")
-        
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+#         return response
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
 
 # GET /api/items/{item_id}
 @agent_router.get("/items/{item_id}", response_model=ItemResponse)

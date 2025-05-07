@@ -1,23 +1,28 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
-import uuid
-from . import models
 from .vector_store import upsert_embedding, delete_embedding, query_embedding
 from backend.services.embedding_service import get_text_embedding, get_image_embedding
 
+import numpy as np
+import uuid
+from . import models
+
 # Clothing Item CRUD operations
 def create_clothing_item(
-    db: Session, 
-    description: str, 
-    image_url: str, 
+    db: Session,
+    description: str,
+    image_url: str,
     category: Optional[str] = None,
     color: Optional[str] = None,
     season: Optional[str] = None,
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = None,
+    item_id: Optional[str] = None,
+    embedding: Optional[np.ndarray] = None
 ) -> models.ClothingItem:
     """Create a new clothing item in the database"""
-    # Generate ID
-    item_id = str(uuid.uuid4())
+    # Use provided ID or generate new one
+    if not item_id:
+        item_id = str(uuid.uuid4())
     
     # Create the item
     db_item = models.ClothingItem(
@@ -44,8 +49,6 @@ def create_clothing_item(
         db.commit()
         db.refresh(db_item)
     
-    # Create embedding and store in vector database
-    embedding = get_text_embedding(description)
     metadata = {
         "description": description,
         "image_url": image_url,

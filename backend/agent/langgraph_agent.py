@@ -5,7 +5,7 @@ from langgraph.graph.message import add_messages
 from langchain_core.messages import ToolMessage
 
 # from backend.agent.tools.outfit_searcher import search_outfits, search_clothing_items
-from backend.agent.tools.image_captioner import caption_image
+from backend.agent.tools.caption_image import caption_image
 from backend.agent.tools.image_storage import store_image
 from backend.services.embedding_service import get_text_embedding
 from backend.db.models import SessionLocal
@@ -88,7 +88,7 @@ def persist_db_step(state: State):
 
     crud.create_clothing_item(
         db=db,
-        id=item_id,
+        item_id=item_id,
         description=state["caption"],
         image_url=state["image_url"],
         embedding=state["embedding"]

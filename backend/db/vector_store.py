@@ -14,22 +14,25 @@ os.makedirs(CHROMA_DB_PATH, exist_ok=True)
 # Initialize ChromaDB client with persistent storage
 client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 
-# Create collections for different types of embeddings
-try:
-    clothing_collection = client.get_collection("clothing_items")
-except chromadb.errors.NotFoundError:
-    clothing_collection = client.create_collection(
-        name="clothing_items",
-        metadata={"description": "Clothing item embeddings for similarity search"}
-    )
+clothing_collection = None
+outfit_collection = None
 
-try:
-    outfit_collection = client.get_collection("outfits")
-except chromadb.errors.NotFoundError:
-    outfit_collection = client.create_collection(
-        name="outfits",
-        metadata={"description": "Outfit embeddings for similarity search"}
-    )
+def init_chroma_collections():
+    global clothing_collection, outfit_collection
+    try:
+        clothing_collection = client.get_collection("clothing_items")
+    except chromadb.errors.NotFoundError:
+        clothing_collection = client.create_collection(
+            name="clothing_items",
+            metadata={"description": "Clothing item embeddings for similarity search"}
+        )
+    try:
+        outfit_collection = client.get_collection("outfits")
+    except chromadb.errors.NotFoundError:
+        outfit_collection = client.create_collection(
+            name="outfits",
+            metadata={"description": "Outfit embeddings for similarity search"}
+        )
 
 class QueryResult(BaseModel):
     id: str
@@ -46,17 +49,26 @@ def upsert_embedding(item_id: str, embedding: List[float], metadata: Dict[str, A
         metadata: Additional data about the item (e.g., description, image_url)
         collection_name: Name of the collection to store in ("clothing_items" or "outfits")
     """
+
+    print("Upserting embedding...")
     collection = client.get_collection(collection_name)
     
     # Convert embedding to the correct format if needed
     if isinstance(embedding, np.ndarray):
         embedding = embedding.tolist()
     
+    # Sanitize metadata: remove keys with None values or empty lists
+    cleaned_metadata = {
+        k: v for k, v in metadata.items()
+        if v is not None and not (isinstance(v, list) and len(v) == 0)
+    }
+    print(cleaned_metadata)
+
     # Upsert the embedding
     collection.upsert(
         ids=[item_id],
         embeddings=[embedding],
-        metadatas=[metadata]
+        metadatas=[cleaned_metadata]
     )
     
     return True
