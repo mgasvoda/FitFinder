@@ -9,7 +9,9 @@ import uuid
 import os
 
 # SQLAlchemy setup
-DATABASE_URL = "sqlite:///./fitfinder.db"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SQLITE_DB_PATH = os.path.join(BASE_DIR, 'fitfinder.db')
+DATABASE_URL = f"sqlite:///{SQLITE_DB_PATH.replace(os.sep, '/')}"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

@@ -5,6 +5,11 @@ from typing import Optional
 from langchain.schema import HumanMessage
 from langchain_anthropic import ChatAnthropic
 from langchain_core.tools import tool
+import logging
+
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Instantiate the Claude 3.5 Haiku model
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -22,6 +27,9 @@ def caption_image(image_url: str, prompt: Optional[str] = "Describe the clothing
     Returns:
         A generated caption.
     """
+    #Add a logging statement to verify caption is running
+    logger.info("Captioning image...")
+
     # Load image data
     if image_url.startswith("http://") or image_url.startswith("https://"):
         import requests

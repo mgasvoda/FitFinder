@@ -20,6 +20,7 @@ import numpy as np
 import uuid
 import os
 import json
+import logging
 
 
 load_dotenv()
@@ -73,14 +74,19 @@ def store_image_step(state: State):
 
 
 def embed_step(state: State):
-    print("Embedding...")
+    logger.info("Embedding...")
     # expects: state['caption'], state['image_url']
     # return get_multimodal_embedding(text=state["caption"], image=state["image_url"])
     return {'embedding': get_text_embedding(text=state["caption"])}
 
 
 def persist_db_step(state: State):
-    print("Persisting to DB via CRUD service...")
+    logger.info('Saving image file')
+    image_url = store_image(state["image_file"])[0]
+    
+
+    # expects: state['caption'], state['image_url'], state['embedding']
+    logger.info("Persisting to DB via CRUD service...")
     db = SessionLocal()
 
     if "item_id" not in state.keys():
@@ -92,10 +98,10 @@ def persist_db_step(state: State):
         db=db,
         item_id=item_id,
         description=state["caption"],
-        image_url=state["image_url"],
+        image_url=image_url,
         embedding=state["embedding"]
     )
-    return {"item_id": item_id}
+    return {"item_id": item_id, "image_url": image_url}
 
 
 def get_items_step(state: State):
@@ -152,12 +158,17 @@ graph = graph_builder.compile()
 
 def stream_graph_updates(user_input: str):
     for event in graph.stream({"messages": [{"role": "user", "content": user_input}]}):
-        print(event)
+        logger.debug(f"Graph stream event: {event}")
         # for value in event.values():
         #     try:
         #         print("Assistant:", value["messages"].content, flush=True)
         #     except AttributeError:
         #         print("Assistant:", value["messages"][-1]['text'], flush=True)
+
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+logger.info('Loading langgraph_agent module')
 
 if __name__ == "__main__":
     while True:
