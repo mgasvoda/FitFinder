@@ -4,6 +4,7 @@ from backend.db.vector_store import query_embedding
 from backend.db import crud, models
 from backend.db.models import get_db
 from sqlalchemy.orm import Session
+from langchain_core.tools import tool
 
 def search_outfits(
     query_text: str, 
@@ -110,80 +111,49 @@ def search_outfits(
             }
         ]
 
+@tool("search_items", parse_docstring=True)
 def search_clothing_items(
     query_text: str, 
     optional_image_url: Optional[str] = None,
     n_results: int = 5,
     filter_metadata: Optional[Dict[str, Any]] = None
-) -> Optional[List[Dict[str, Any]]]:
+) -> Optional[List[str]]:
     """
     Search for individual clothing items based on text query and optional image
     
     Args:
-        query_text: Text query for item search
-        optional_image_url: Optional image URL to include in the search
-        n_results: Maximum number of results to return
-        filter_metadata: Optional filter criteria
-        
+        query_text: Text query for item search.
+        optional_image_url: Optional image URL to include in the search.
+        n_results: Maximum number of results to return.
+        filter_metadata: Optional filter criteria.
+
     Returns:
-        List of matching clothing items with metadata
+        List of matching clothing item IDs.
     """
     try:
         # Generate embedding based on inputs
         if optional_image_url and query_text:
             # Multimodal search (text + image)
-            query_embedding = get_multimodal_embedding(query_text, optional_image_url)
+            embedding = get_multimodal_embedding(query_text, optional_image_url)
         elif optional_image_url:
             # Image-only search
-            query_embedding = get_image_embedding(optional_image_url)
+            embedding = get_image_embedding(optional_image_url)
         else:
             # Text-only search
-            query_embedding = get_text_embedding(query_text)
+            embedding = get_text_embedding(query_text)
         
         # Query the vector database
         results = query_embedding(
-            query_embedding=query_embedding,
+            query_embedding=embedding,
             collection_name="clothing_items",
             n_results=n_results,
             filter_metadata=filter_metadata
         )
         
-        # Format results
-        formatted_results = []
-        for result in results:
-            # Get the full item details from SQLite
-            db = next(get_db())
-            item = crud.get_clothing_item(db, result.id)
-            
-            if item:
-                # Format the item
-                item_data = {
-                    "id": item.id,
-                    "description": item.description,
-                    "image_url": item.image_url,
-                    "category": item.category,
-                    "color": item.color,
-                    "season": item.season,
-                    "score": result.score,
-                    "tags": [tag.name for tag in item.tags]
-                }
-                
-                formatted_results.append(item_data)
-        
-        return formatted_results
+        # Return only IDs for LangGraph tool
+        return [result.id for result in results]
     
     except Exception as e:
         print(f"Error in clothing item search: {e}")
-        # Return a fallback result for development
-        return [
-            {
-                "id": "item1",
-                "description": "Red dress",
-                "image_url": "/images/clothing_items/item1.jpg",
-                "category": "dress",
-                "color": "red",
-                "season": "summer",
-                "score": 0.95,
-                "tags": ["dress", "red", "summer", "formal"]
-            }
-        ]
+        # Return fallback list of IDs
+        return ["item1"]

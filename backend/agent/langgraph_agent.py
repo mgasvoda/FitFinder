@@ -7,6 +7,7 @@ from langchain_core.messages import ToolMessage
 # from backend.agent.tools.outfit_searcher import search_outfits, search_clothing_items
 from backend.agent.tools.caption_image import caption_image
 from backend.agent.tools.image_storage import store_image
+from backend.agent.tools.outfit_searcher import search_clothing_items as search_items
 from backend.services.embedding_service import get_text_embedding
 from backend.db.models import SessionLocal
 from backend.db import crud
@@ -35,6 +36,8 @@ class State(TypedDict):
     image_url: Optional[str]
     caption: Optional[str]
     embedding: Optional[np.ndarray]
+    items: Optional[list]
+    search_items: Optional[list]
 
 
 class CaptionToolNode:
@@ -50,20 +53,19 @@ class CaptionToolNode:
             raise ValueError("No message found in input")
         outputs = []
         for tool_call in message.tool_calls:
-            tool_result = self.tools_by_name[tool_call["name"]].invoke(
-                tool_call["args"]
-            )
+            name = tool_call["name"]
+            result = self.tools_by_name[name].invoke(tool_call["args"])
             outputs.append(
                 ToolMessage(
-                    content=json.dumps(tool_result),
-                    name=tool_call["name"],
+                    content=json.dumps(result),
+                    name=name,
                     tool_call_id=tool_call["id"],
-                    args=tool_call["args"]
+                    args=tool_call["args"],
                 )
             )
-        
-        #hardcoding caption update temporarily for testing
-        return {"messages": outputs, "caption": tool_result, "image_url": tool_call["args"]["image_url"]}
+            state_update = {"messages": outputs, name: result}
+        return state_update
+
 
 def store_image_step(state: State):
     # expects: state['image_file']
@@ -96,13 +98,26 @@ def persist_db_step(state: State):
     return {"item_id": item_id}
 
 
+def get_items_step(state: State):
+    db = SessionLocal()
+    ids = state.get("search_items", [])
+    items = crud.get_clothing_items_by_ids(db=db, item_ids=ids)
+    return {"items": items}
+
+
+def format_item_search_response(state: State):
+    from backend.agent.formatters import format_item_search_messages
+    messages = format_item_search_messages(state.get("items", []) or [])
+    return {"messages": messages}
+
+
 # Instantiate the LangGraph agent with anthropic model
 llm = ChatAnthropic(
     model="claude-3-7-sonnet-latest",
     anthropic_api_key=ANTHROPIC_API_KEY
 )
 
-tools = [caption_image]
+tools = [caption_image, search_items]
 
 # --- Build StateGraph for sequential workflow ---
 graph_builder = StateGraph(State)
@@ -112,19 +127,24 @@ graph_builder.add_node("chat", lambda state: {"messages":llm.bind_tools(tools).i
 graph_builder.add_node("tools", CaptionToolNode(tools))
 graph_builder.add_node("embed", embed_step)
 graph_builder.add_node("persist_db", persist_db_step)
+graph_builder.add_node("get_items", get_items_step)
+graph_builder.add_node("format_items", format_item_search_response)
 
 # Add edges for sequential execution
 graph_builder.add_edge(START, "chat")
-graph_builder.add_edge("tools", "chat") 
+# graph_builder.add_edge("tools", "chat") 
 graph_builder.add_conditional_edges(
     "chat", tools_condition
 )
-# graph_builder.add_edge("chat", "store_image")
-# graph_builder.add_edge("store_image", "caption")
-# graph_builder.add_edge("caption", "embed")
-graph_builder.add_edge('tools', 'embed')
+
+graph_builder.add_conditional_edges(
+    'tools',
+    lambda state: 'embed' if 'caption' in state else ('get_items' if 'search_items' in state else END)
+)
 graph_builder.add_edge("embed", "persist_db")
 graph_builder.add_edge('persist_db', 'chat')
+graph_builder.add_edge('get_items', 'format_items')
+graph_builder.add_edge('format_items', 'chat')
 graph_builder.add_edge("chat", END)
 
 # Compile the graph to an executable tool

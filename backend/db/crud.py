@@ -65,6 +65,19 @@ def get_clothing_item(db: Session, item_id: str) -> Optional[models.ClothingItem
     """Get a clothing item by ID"""
     return db.query(models.ClothingItem).filter(models.ClothingItem.id == item_id).first()
 
+def get_clothing_items_by_ids(db: Session, item_ids: List[str]) -> List[models.ClothingItem]:
+    """
+    Get all clothing items matching a list of item IDs.
+    Args:
+        db: SQLAlchemy Session
+        item_ids: List of clothing item IDs to retrieve
+    Returns:
+        List of ClothingItem objects matching the provided IDs (order not guaranteed)
+    """
+    if not item_ids:
+        return []
+    return db.query(models.ClothingItem).filter(models.ClothingItem.id.in_(item_ids)).all()
+
 def get_clothing_items(
     db: Session, 
     skip: int = 0, 
