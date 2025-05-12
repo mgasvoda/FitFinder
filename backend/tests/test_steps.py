@@ -35,10 +35,10 @@ def test_store_image_step_passthrough():
 # --- Test embed_step ---
 @patch("backend.agent.steps.get_text_embedding")
 def test_embed_step_success(mock_embed):
-    mock_embed.return_value = np.array([1.0, 2.0, 3.0])
+    mock_embed.return_value = [1.0, 2.0, 3.0]
     state = {"caption": "desc"}
     result = steps.embed_step(state)
-    np.testing.assert_array_equal(result["embedding"], np.array([1.0, 2.0, 3.0]))
+    assert result["embedding"] == [1.0, 2.0, 3.0]
     assert result["caption"] == "desc"
 
 @patch("backend.agent.steps.get_text_embedding", side_effect=Exception("fail"))

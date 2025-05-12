@@ -8,6 +8,10 @@ import torch
 from transformers import CLIPProcessor, CLIPModel
 from pathlib import Path
 from backend.services.storage_service import get_absolute_path
+import logging  
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Check if CUDA is available
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -18,9 +22,9 @@ try:
     model = CLIPModel.from_pretrained(model_name).to(DEVICE)
     processor = CLIPProcessor.from_pretrained(model_name)
     EMBEDDING_DIM = model.config.text_config.hidden_size  # Usually 512 for CLIP base
-    print(f"CLIP model loaded successfully on {DEVICE}")
+    logging.info(f"CLIP model loaded successfully on {DEVICE}")
 except Exception as e:
-    print(f"Error loading CLIP model: {e}")
+    logging.error(f"Error loading CLIP model: {e}")
     # Fallback to dummy embeddings for development
     EMBEDDING_DIM = 512
     model = None
@@ -54,9 +58,8 @@ def get_text_embedding(text: str) -> List[float]:
         # Convert to list and return
         return text_embedding.cpu().numpy()[0].tolist()
     except Exception as e:
-        print(f"Error generating text embedding: {e}")
-        # Return dummy embedding on error
-        return [0.0] * EMBEDDING_DIM
+        logger.error(f"Error generating text embedding: {e}")
+        raise e
 
 def get_image_embedding(image_input: Union[str, bytes, Image.Image]) -> List[float]:
     """
@@ -110,9 +113,8 @@ def get_image_embedding(image_input: Union[str, bytes, Image.Image]) -> List[flo
         # Convert to list and return
         return image_embedding.cpu().numpy()[0].tolist()
     except Exception as e:
-        print(f"Error generating image embedding: {e}")
-        # Return dummy embedding on error
-        return [0.0] * EMBEDDING_DIM
+        logger.error(f"Error generating image embedding: {e}")
+        raise e
 
 def get_multimodal_embedding(text: Optional[str] = None, image: Optional[Union[str, bytes, Image.Image]] = None) -> List[float]:
     """
@@ -125,7 +127,7 @@ def get_multimodal_embedding(text: Optional[str] = None, image: Optional[Union[s
     Returns:
         List of floats representing the combined embedding vector
     """
-    print("Generating multimodal embedding")
+    logger.info("Generating multimodal embedding")
 
     # Get individual embeddings
     text_embedding = get_text_embedding(text) if text else None
@@ -135,17 +137,17 @@ def get_multimodal_embedding(text: Optional[str] = None, image: Optional[Union[s
     if text_embedding and image_embedding:
         # Simple average of the two embeddings
         combined = np.mean([np.array(text_embedding), np.array(image_embedding)], axis=0)
-        print("Combined embedding:", combined)
+        logger.info("Combined embedding:", combined)
         return combined.tolist()
     elif text_embedding:
-        print("Text embedding:", text_embedding)
+        logger.info("Text embedding:", text_embedding)
         return text_embedding
     elif image_embedding:
-        print("Image embedding:", image_embedding)
+        logger.info("Image embedding:", image_embedding)
         return image_embedding
     else:
-        # Return zeros if no inputs provided
-        return [0.0] * EMBEDDING_DIM
+        logger.error("No inputs provided for multimodal embedding")
+        raise ValueError("No inputs provided for multimodal embedding")
 
 def compute_similarity(embedding1: List[float], embedding2: List[float]) -> float:
     """

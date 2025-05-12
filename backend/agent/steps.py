@@ -123,7 +123,7 @@ def embed_step(state: State):
             logger.error("Failed to generate embedding, got None")
             return state
             
-        logger.info(f"Generated embedding with shape: {embedding.shape}")
+        logger.info(f"Generated embedding with shape: {len(embedding)}")
         
         # Update state with the embedding
         return {
@@ -168,7 +168,7 @@ def persist_db_step(state: State):
                 db=db,
                 description=caption,
                 image_url=image_url,
-                embedding=embedding.tolist() if embedding is not None else None
+                embedding=embedding
             )
             
             logger.info(f"Created clothing item in database with ID: {db_item.id}")
@@ -192,10 +192,8 @@ def persist_db_step(state: State):
             # Always close the database session
             db.close()
     except Exception as e:
-        logger.error(f"Error persisting to database: {e}", exc_info=True)
-        # Return original state on error
-        return state
-
+        logger.error(f"Error persisting to database: {e}")
+        raise e
 
 def get_items_step(state: State):
     """Process the search results and prepare them for the response.
