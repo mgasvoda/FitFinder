@@ -194,6 +194,9 @@ def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
                 except Exception:
                     serializable_state[key] = "<unserializable>"
         
+        # Always propagate matching_outfits from result_state if present
+        matching_outfits = result_state.get("matching_outfits", [])
+
         # Create and return the response
         response = ChatResponse(
             response_text=response_text,

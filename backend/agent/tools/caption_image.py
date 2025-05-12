@@ -1,10 +1,15 @@
-from pathlib import Path
-import base64
-import os
-from typing import Optional
 from langchain.schema import HumanMessage
 from langchain_anthropic import ChatAnthropic
 from langchain_core.tools import tool
+from backend.agent.tools.image_storage import store_image
+from fastapi import UploadFile
+from pathlib import Path
+from typing import Optional
+
+import io
+import uuid
+import base64
+import os
 import logging
 
 
@@ -15,23 +20,10 @@ logging.basicConfig(level=logging.INFO)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 llm = ChatAnthropic(model="claude-3-5-haiku-latest", anthropic_api_key=ANTHROPIC_API_KEY)
 
-@tool("caption_image", parse_docstring=True)
-def caption_image(image_url: str, prompt: Optional[str] = "Generate a descriptive caption for the clothing item in this image. This caption will be used in an embedding database for future retrieval. Focus only on the main clothing item, disregarding surrounding elements.") -> dict:
+def _caption_image_impl(image_url: str, prompt: Optional[str] = "Generate a descriptive caption for the clothing item in this image. This caption will be used in an embedding database for future retrieval. Focus only on the main clothing item, disregarding surrounding elements.") -> dict:
     """
-    Begin the workflow for storing a new clothing item. Generates a descriptive caption for an image and saves the image file.
-
-    Args:
-        image_url: URL or local path to the image.
-        prompt: Optional custom prompt.
-
-    Returns:
-        A dictionary containing the caption and image metadata.
+    Core logic for captioning an image and saving it. Used for both API and direct unit testing.
     """
-    from backend.agent.tools.image_storage import store_image
-    from fastapi import UploadFile
-    import io
-    import uuid
-    
     logger.info(f"Captioning image from source: {image_url}")
     item_id = str(uuid.uuid4())  # Generate a unique ID for this item
     
@@ -90,3 +82,17 @@ def caption_image(image_url: str, prompt: Optional[str] = "Generate a descriptiv
             "item_id": item_id,
             "image_url": None
         }
+
+@tool("caption_image", parse_docstring=True)
+def caption_image(image_url: str, prompt: Optional[str] = "Generate a descriptive caption for the clothing item in this image. This caption will be used in an embedding database for future retrieval. Focus only on the main clothing item, disregarding surrounding elements.") -> dict:
+    """
+    Begin the workflow for storing a new clothing item. Generates a descriptive caption for an image and saves the image file.
+
+    Args:
+        image_url: URL or local path to the image.
+        prompt: Optional custom prompt.
+
+    Returns:
+        A dictionary containing the caption and image metadata.
+    """
+    return _caption_image_impl(image_url, prompt)

@@ -35,8 +35,7 @@ def store_image(image, item_id=None):
             # Create a UploadFile object
             upload_file = UploadFile(
                 filename=file_name,
-                file=file_obj,
-                content_type='image/jpeg'  # Assuming JPEG, adjust if needed
+                file=file_obj
             )
             
             return store_clothing_image(upload_file, item_id)

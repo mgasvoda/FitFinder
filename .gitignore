@@ -12,3 +12,5 @@ fitfinder.db
 uv.lock
 .env
 chroma_db/**
+
+images/**
