@@ -81,35 +81,6 @@ def search_outfits(
     
     except Exception as e:
         print(f"Error in outfit search: {e}")
-        # Return a fallback result for development
-        return [
-            {
-                "id": "sample1",
-                "name": "Summer Casual",
-                "description": "A light and casual outfit for summer days",
-                "occasion": "casual",
-                "season": "summer",
-                "score": 0.95,
-                "items": [
-                    {
-                        "id": "item1",
-                        "description": "White cotton t-shirt",
-                        "image_url": "/images/clothing_items/item1.jpg",
-                        "category": "top",
-                        "color": "white",
-                        "tags": ["casual", "summer", "cotton"]
-                    },
-                    {
-                        "id": "item2",
-                        "description": "Blue denim shorts",
-                        "image_url": "/images/clothing_items/item2.jpg",
-                        "category": "bottom",
-                        "color": "blue",
-                        "tags": ["casual", "summer", "denim"]
-                    }
-                ]
-            }
-        ]
 
 @tool("search_items", parse_docstring=True)
 def search_clothing_items(
@@ -155,5 +126,3 @@ def search_clothing_items(
     
     except Exception as e:
         print(f"Error in clothing item search: {e}")
-        # Return fallback list of IDs
-        return ["item1"]
