@@ -20,12 +20,22 @@ logging.basicConfig(level=logging.INFO)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 llm = ChatAnthropic(model="claude-3-5-haiku-latest", anthropic_api_key=ANTHROPIC_API_KEY)
 
-def _caption_image_impl(image_url: str, prompt: Optional[str] = "Generate a descriptive caption for the clothing item in this image. This caption will be used in an embedding database for future retrieval. Focus only on the main clothing item, disregarding surrounding elements.") -> dict:
+def _caption_image_impl(image_url: str, prompt: Optional[str] = None) -> dict:
     """
-    Core logic for captioning an image and saving it. Used for both API and direct unit testing.
+    Core logic for captioning an image, determining its category, and saving it.
     """
-    logger.info(f"Captioning image from source: {image_url}")
+    logger.info(f"Captioning and categorizing image from source: {image_url}")
     item_id = str(uuid.uuid4())  # Generate a unique ID for this item
+
+    default_prompt = (
+        "Generate a descriptive caption for the clothing item in this image. "
+        "This caption will be used in an embedding database for future retrieval. "
+        "Focus only on the main clothing item, disregarding surrounding elements.\n\n"
+        "After the caption, on a new line, identify the category of the item. "
+        "The category MUST be one of the following: top, bottom, shoes, accessories."
+        "Format the category line like this: 'Category: <chosen_category>'."
+    )
+    current_prompt = prompt if prompt else default_prompt
     
     try:
         # Load image data
@@ -55,18 +65,48 @@ def _caption_image_impl(image_url: str, prompt: Optional[str] = "Generate a desc
         img_base64 = base64.b64encode(img_bytes).decode()
         content = [
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}},
-            {"type": "text", "text": prompt}
+            {"type": "text", "text": current_prompt}
         ]
         
-        # Get caption from Claude
+        # Get caption and category from Claude
         human_msg = HumanMessage(content=content)
         response = llm.generate([[human_msg]])
-        caption = response.generations[0][0].text.strip()
-        logger.info(f"Generated caption: {caption[:50]}...")
+        llm_output = response.generations[0][0].text.strip()
+        logger.info(f"LLM Output:\n{llm_output}")
+
+        # Parse caption and category
+        caption = "Error: Could not parse caption."
+        category = "Error: Could not parse category."
+        lines = llm_output.split('\n')
+        
+        if lines:
+            caption = lines[0].strip() # First line is caption
+            if len(lines) > 1:
+                category_line = lines[-1].strip() # Last line should be category
+                if category_line.startswith("Category:"):
+                    extracted_cat = category_line.replace("Category:", "").strip().lower()
+                    # Validate category
+                    allowed_categories = ["top", "bottom", "shoes", "accessories"]
+                    if extracted_cat in allowed_categories:
+                        category = extracted_cat
+                    else:
+                        logger.warning(f"LLM provided invalid category: '{extracted_cat}'. Falling back to 'accessories'.")
+                        category = "accessories" # Fallback category
+                else:
+                    logger.warning(f"Could not parse category from line: '{category_line}'. Falling back to 'accessories'.")
+                    category = "accessories" # Fallback category if parsing fails
+            else:
+                logger.warning("LLM output did not contain a separate line for category. Falling back to 'accessories'.")
+                category = "accessories" # Fallback category
+        else:
+            logger.error("LLM output was empty.")
+
+        logger.info(f"Generated caption: {caption[:50]}... | Category: {category}")
         
         # Return both the caption and the image metadata (no binary data)
         return {
             "caption": caption,
+            "category": category, # Added category
             "item_id": saved_item_id,
             "image_url": saved_image_url,
             "metadata": {
@@ -84,7 +124,7 @@ def _caption_image_impl(image_url: str, prompt: Optional[str] = "Generate a desc
         }
 
 @tool("caption_image", parse_docstring=True)
-def caption_image(image_url: str, prompt: Optional[str] = "Generate a descriptive caption for the clothing item in this image. This caption will be used in an embedding database for future retrieval. Focus only on the main clothing item, disregarding surrounding elements.") -> dict:
+def caption_image(image_url: str, prompt: Optional[str] = None) -> dict:
     """
     Begin the workflow for storing a new clothing item. Generates a descriptive caption for an image and saves the image file.
 
@@ -93,6 +133,6 @@ def caption_image(image_url: str, prompt: Optional[str] = "Generate a descriptiv
         prompt: Optional custom prompt.
 
     Returns:
-        A dictionary containing the caption and image metadata.
+        A dictionary containing the caption, category, and image metadata.
     """
     return _caption_image_impl(image_url, prompt)

@@ -3,10 +3,10 @@ from typing import TypedDict, List, Dict, Any
 from langgraph.graph import StateGraph, START, END
 
 from backend.agent.tools.outfit_specific_tools import (
-    get_item_embedding_stub,
-    query_sqlite_by_tags_stub,
-    query_chroma_by_ids_and_embedding_stub,
-    check_outfit_completeness_stub
+    get_item_embedding,
+    query_sqlite_by_tags,
+    query_chroma_by_ids_and_embedding,
+    check_outfit_completeness
 )
 
 logger = logging.getLogger(__name__)
@@ -49,18 +49,18 @@ def parse_anchor_item_node_stub(state: OutfitAgentState) -> Dict[str, Any]:
         "selected_items": [],
         "missing_categories": ["top", "bottom", "shoes"],
         "feedback_log": state.get("feedback_log", []) + [f"Parsed anchor: {anchor_desc}"],
-        "current_embedding": get_item_embedding_stub(anchor_desc)
+        "current_embedding": get_item_embedding(anchor_desc)
     }
 
 def query_sqlite_anchor_node_stub(state: OutfitAgentState) -> Dict[str, Any]:
     logger.info("STUB (Outfit Designer Node): query_sqlite_anchor_node_stub called")
     tags = {"description_contains": state["anchor_item_description"], "season": state["season"]}
-    item_ids = query_sqlite_by_tags_stub(tags)
+    item_ids = query_sqlite_by_tags(tags)
     return {"item_candidates": item_ids}
 
 def query_chroma_anchor_node_stub(state: OutfitAgentState) -> Dict[str, Any]:
     logger.info("STUB (Outfit Designer Node): query_chroma_anchor_node_stub called")
-    best_match_items = query_chroma_by_ids_and_embedding_stub(
+    best_match_items = query_chroma_by_ids_and_embedding(
         state["item_candidates"],
         state["current_embedding"],
         top_k=1
@@ -92,12 +92,12 @@ def build_outfit_loop_node_stub(state: OutfitAgentState) -> Dict[str, Any]:
 
 def check_completeness_node_stub(state: OutfitAgentState) -> Dict[str, Any]:
     logger.info("STUB (Outfit Designer Node): check_completeness_node_stub called")
-    is_complete = check_outfit_completeness_stub(state.get("selected_items", []))
+    is_complete = check_outfit_completeness(state.get("selected_items", []))
     log_message = f"Completeness check: {is_complete}"
     if not is_complete:
-        logger.info("Outfit not yet complete based on stub check.")
+        logger.info("Outfit not yet complete based on check.")
     else:
-        logger.info("Outfit is complete based on stub check.")
+        logger.info("Outfit is complete based on check.")
     return {"feedback_log": state.get("feedback_log", []) + [log_message]}
 
 def handle_feedback_node_stub(state: OutfitAgentState) -> Dict[str, Any]:
@@ -118,7 +118,7 @@ def should_refine_outfit_condition(state: OutfitAgentState) -> str:
     # Ensure messages list is not empty and last_message is accessible
     if not state.get("messages"): 
         # If no messages, perhaps initial build
-        if not check_outfit_completeness_stub(state.get("selected_items", [])) and state.get("missing_categories"):
+        if not check_outfit_completeness(state.get("selected_items", [])) and state.get("missing_categories"):
             logger.info("Outfit not complete, routing to build_outfit_loop_node_stub")
             return "build_outfit"
         logger.info("No messages and outfit complete or no missing categories, routing to END (Outfit Designer)")
@@ -135,7 +135,7 @@ def should_refine_outfit_condition(state: OutfitAgentState) -> str:
     if "swap" in content_to_check:
         logger.info("Routing to handle_feedback_node_stub")
         return "handle_feedback"
-    if not check_outfit_completeness_stub(state.get("selected_items", [])) and state.get("missing_categories"):
+    if not check_outfit_completeness(state.get("selected_items", [])) and state.get("missing_categories"):
         logger.info("Outfit not complete, routing to build_outfit_loop_node_stub")
         return "build_outfit"
     logger.info("Outfit complete or no feedback, routing to END (Outfit Designer)")

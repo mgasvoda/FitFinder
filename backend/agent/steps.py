@@ -27,6 +27,7 @@ class State(TypedDict):
     image_url: Optional[str]
     caption: Optional[str]
     embedding: Optional[np.ndarray]
+    category: Optional[str]
     items: Optional[list]
     search_items: Optional[list]
 
@@ -78,6 +79,15 @@ class CaptionToolNode:
                 if "item_id" in result:
                     state_update["item_id"] = result["item_id"]
                     logger.info(f"Extracted item_id: {result['item_id']}")
+
+                # Extract category from the result
+                if "category" in result:
+                    # Ensure the category is one of the allowed values, if necessary
+                    # For now, directly use the provided category
+                    state_update["category"] = result["category"]
+                    logger.info(f"Extracted category: {result['category']}")
+                else:
+                    logger.warning("Category not found in caption_image result.")
                 
                 # Store the entire result under the tool name for compatibility
                 state_update[name] = result
@@ -153,9 +163,11 @@ def persist_db_step(state: State):
     caption = state["caption"]
     image_url = state["image_url"]
     embedding = state.get("embedding")  # This might be None if embedding failed
+    category = state.get("category")    # Retrieve category from state
     
     logger.info(f"Persisting item with caption: {caption[:50]}...")
     logger.info(f"Image URL: {image_url}")
+    logger.info(f"Category: {category}") # Log the category
     logger.info(f"Embedding available: {embedding is not None}")
     
     try:
@@ -168,7 +180,8 @@ def persist_db_step(state: State):
                 db=db,
                 description=caption,
                 image_url=image_url,
-                embedding=embedding
+                embedding=embedding,
+                category=category  # Pass category to CRUD function
             )
             
             logger.info(f"Created clothing item in database with ID: {db_item.id}")
