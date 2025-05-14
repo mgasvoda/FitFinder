@@ -16,13 +16,13 @@ def search_outfits(
     Search for outfits based on text query and optional image
     
     Args:
-        query_text: Text query for outfit search
-        optional_image_url: Optional image URL to include in the search
-        n_results: Maximum number of results to return
-        filter_metadata: Optional filter criteria
+        query_text (str): Text query for outfit search
+        optional_image_url (Optional[str]): Optional image URL to include in the search
+        n_results (int): Maximum number of results to return
+        filter_metadata (Optional[Dict[str, Any]]): Optional filter criteria
         
     Returns:
-        List of matching outfits with metadata
+        Optional[List[Dict[str, Any]]]: List of matching outfits with metadata
     """
     try:
         # Generate embedding based on inputs
@@ -82,6 +82,54 @@ def search_outfits(
     except Exception as e:
         print(f"Error in outfit search: {e}")
 
+
+def filter_clothing_items_sqlite(tags: Optional[Dict[str, Any]] = None) -> List[str]:
+    """
+    Filter clothing items in SQLite by tags/metadata and return a list of item IDs.
+
+    Args:
+        tags (Optional[Dict[str, Any]]): Dictionary of metadata to filter by (e.g., category, color, user tags).
+    
+    Returns:
+        List[str]: List of matching clothing item IDs.
+    """
+    db = next(get_db())
+    query = db.query(models.ClothingItem)
+    if tags:
+        for key, value in tags.items():
+            if hasattr(models.ClothingItem, key):
+                query = query.filter(getattr(models.ClothingItem, key) == value)
+            # Add more sophisticated tag filtering as needed (e.g., for many-to-many tags)
+    return [item.id for item in query.all()]
+
+
+def vector_search_chroma(
+    embedding: List[float],
+    allowed_ids: Optional[List[str]] = None,
+    n_results: int = 5,
+    collection_name: str = "clothing_items"
+) -> List[Any]:
+    """
+    Perform a vector search in Chroma, optionally restricting to allowed IDs.
+
+    Args:
+        embedding (List[float]): The query embedding.
+        allowed_ids (Optional[List[str]]): If provided, restrict search to these item IDs.
+        n_results (int): Number of results to return.
+        collection_name (str): Chroma collection name.
+
+    Returns:
+        List[Any]: List of matching items (Chroma results).    
+    """
+    filter_metadata = {"id": {"$in": allowed_ids}} if allowed_ids else None
+    return query_embedding(
+        query_embedding=embedding,
+        collection_name=collection_name,
+        n_results=n_results,
+        filter_metadata=filter_metadata
+    )
+
+
 @tool("search_items", parse_docstring=True)
 def search_clothing_items(
     query_text: str, 
@@ -90,39 +138,37 @@ def search_clothing_items(
     filter_metadata: Optional[Dict[str, Any]] = None
 ) -> Optional[List[str]]:
     """
-    Search for individual clothing items based on text query and optional image
-    
+    Search for individual clothing items based on text query and optional image.
+
     Args:
-        query_text: Text query for item search.
-        optional_image_url: Optional image URL to include in the search.
-        n_results: Maximum number of results to return.
-        filter_metadata: Optional filter criteria.
+        query_text (str): Text query for item search.
+        optional_image_url (Optional[str]): Optional image URL to include in the search.
+        n_results (int): Maximum number of results to return.
+        filter_metadata (Optional[dict]): Optional filter criteria (applied in SQLite first if present).
 
     Returns:
-        List of matching clothing item IDs.
+        Optional[List[str]]: List of matching clothing item IDs.
     """
     try:
-        # Generate embedding based on inputs
+        # 1. Filter in SQLite if filter_metadata is provided
+        allowed_ids = filter_clothing_items_sqlite(filter_metadata) if filter_metadata else None
+
+        # 2. Generate embedding
         if optional_image_url and query_text:
-            # Multimodal search (text + image)
             embedding = get_multimodal_embedding(query_text, optional_image_url)
         elif optional_image_url:
-            # Image-only search
             embedding = get_image_embedding(optional_image_url)
         else:
-            # Text-only search
             embedding = get_text_embedding(query_text)
-        
-        # Query the vector database
-        results = query_embedding(
-            query_embedding=embedding,
-            collection_name="clothing_items",
+
+        # 3. Vector search in Chroma, restricted to allowed_ids if any
+        results = vector_search_chroma(
+            embedding=embedding,
+            allowed_ids=allowed_ids,
             n_results=n_results,
-            filter_metadata=filter_metadata
+            collection_name="clothing_items"
         )
-        
-        # Return only IDs for LangGraph tool
         return [result.id for result in results]
-    
     except Exception as e:
         print(f"Error in clothing item search: {e}")
+        return None

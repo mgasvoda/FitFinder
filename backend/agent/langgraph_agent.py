@@ -28,11 +28,6 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 logger.info('Loading langgraph_agent module (refactored)')
 
-
-
-# stream_graph_updates function moved to orchestrator.py as stream_agent_updates
-
-
 # Example usage for testing
 if __name__ == "__main__":
     while True:
