@@ -1,12 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from typing import Optional, List, Dict, Any
 from backend.agent.tools.image_storage import store_image, remove_image
-from backend.agent.orchestrator import run_agent
+from backend.agent.orchestrator import run_agent, OutfitAgentState, State
 from backend.agent.schemas import ChatRequest, ChatResponse, UploadResponse, ItemResponse
 from backend.db import crud, models
 from backend.db.models import get_db
 from sqlalchemy.orm import Session
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage # Keep for type hinting if needed
+from backend.agent.utils import get_message_details # Import the new utility
 
 import logging
 
@@ -84,42 +85,18 @@ def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
         
         # Extract the response text from the agent's messages
         messages = result_state.get("messages", [])
-        response_text = ""
-        
-        # Process the messages to extract response text
+        response_text = "Sorry, I encountered an issue or couldn't find a specific answer."
         
         # Find the last AI message
-        for message in reversed(messages):
-            try:
-                # First handle objects with content attribute (like AIMessage)
-                if hasattr(message, "type") and message.type == "ai":
-                    response_text = message.content
+        if messages:
+            for msg_obj in reversed(messages):
+                details = get_message_details(msg_obj)
+                if details and details["role"] == "assistant":
+                    response_text = details["content"]
                     break
-                elif isinstance(message, dict) and message.get("role") == "assistant":
-                    response_text = message.get("content", "")
-                    break
-                elif isinstance(message, AIMessage):
-                    response_text = message.content
-                    break
-                elif hasattr(message, "content"):
-                    content = message.content
-                    if isinstance(content, str):
-                        response_text = content
-                        break
-                # Then handle dictionary style messages
-                elif isinstance(message, dict) and "content" in message:
-                    response_text = message["content"]
-                    break
-            except Exception as e:
-                logger.error(f"Error processing message: {e}")
-                continue
         
-        # If we still don't have a response, use a fallback
-        if not response_text:
-            logger.warning("Could not extract response text from messages, using fallback")
-            response_text = "I processed your request, but couldn't generate a proper response. Please try again."
-            logger.warning("No response text extracted from messages")
-
+        # If we still don't have a response, use a fallback (already initialized)
+        
         # Extract matching outfits if available
         matching_outfits = result_state.get("items", [])
         

@@ -5,6 +5,9 @@ from backend.db import crud, models
 from backend.db.models import get_db
 from sqlalchemy.orm import Session
 from langchain_core.tools import tool
+import logging
+
+logger = logging.getLogger(__name__)
 
 def search_outfits(
     query_text: str, 
@@ -80,7 +83,8 @@ def search_outfits(
         return formatted_results
     
     except Exception as e:
-        print(f"Error in outfit search: {e}")
+        logger.error(f"Error in outfit search: {e}", exc_info=True)
+        return None
 
 
 def filter_clothing_items_sqlite(tags: Optional[Dict[str, Any]] = None) -> List[str]:
@@ -132,7 +136,7 @@ def vector_search_chroma(
 
 @tool("search_items", parse_docstring=True)
 def search_clothing_items(
-    query_text: str, 
+    query_text: Optional[str] = None, 
     optional_image_url: Optional[str] = None,
     n_results: int = 5,
     filter_metadata: Optional[Dict[str, Any]] = None
@@ -141,7 +145,7 @@ def search_clothing_items(
     Search for individual clothing items based on text query and optional image.
 
     Args:
-        query_text (str): Text query for item search.
+        query_text (Optional[str]): Text query for item search.
         optional_image_url (Optional[str]): Optional image URL to include in the search.
         n_results (int): Maximum number of results to return.
         filter_metadata (Optional[dict]): Optional filter criteria (applied in SQLite first if present).
@@ -151,24 +155,47 @@ def search_clothing_items(
     """
     try:
         # 1. Filter in SQLite if filter_metadata is provided
-        allowed_ids = filter_clothing_items_sqlite(filter_metadata) if filter_metadata else None
+        allowed_ids_from_sqlite = filter_clothing_items_sqlite(filter_metadata) if filter_metadata else None
 
-        # 2. Generate embedding
+        # Handle case where only filter_metadata is used (no text or image query)
+        if query_text is None and optional_image_url is None:
+            if allowed_ids_from_sqlite is not None:
+                logger.info(f"search_items: Returning {len(allowed_ids_from_sqlite)} IDs directly from SQLite filter.")
+                # Ensure n_results is respected if list is too long, though SQLite filter might not have this concept directly
+                return allowed_ids_from_sqlite[:n_results] if n_results > 0 else allowed_ids_from_sqlite
+            else:
+                logger.info("search_items: Called with no query, no image, and no matching SQLite filter. Returning empty list.")
+                return []
+
+        # 2. Generate embedding if query_text or optional_image_url is present
+        embedding = None
         if optional_image_url and query_text:
             embedding = get_multimodal_embedding(query_text, optional_image_url)
         elif optional_image_url:
             embedding = get_image_embedding(optional_image_url)
-        else:
+        elif query_text: # query_text is not None here
             embedding = get_text_embedding(query_text)
+        
+        if embedding is None:
+            # This case should ideally not be reached if the logic above is correct,
+            # unless a new combination is unhandled (e.g. query_text is None but we expect it for image-only embedding for some reason)
+            # Or if embedding generation failed silently (should raise error in embedding functions ideally)
+            logger.warning("search_items: Embedding could not be generated, and not a filter-only query. Returning empty list.")
+            if allowed_ids_from_sqlite is not None: # Fallback to SQLite results if available
+                 logger.info(f"search_items: Falling back to {len(allowed_ids_from_sqlite)} SQLite results as embedding failed.")
+                 return allowed_ids_from_sqlite[:n_results] if n_results > 0 else allowed_ids_from_sqlite
+            return []
 
-        # 3. Vector search in Chroma, restricted to allowed_ids if any
+        # 3. Vector search in Chroma, restricted to allowed_ids_from_sqlite if any
         results = vector_search_chroma(
             embedding=embedding,
-            allowed_ids=allowed_ids,
+            allowed_ids=allowed_ids_from_sqlite, # Pass the IDs from SQLite filter
             n_results=n_results,
             collection_name="clothing_items"
         )
-        return [result.id for result in results]
+        found_ids = [result.id for result in results]
+        logger.info(f"search_items: Vector search found {len(found_ids)} items. Allowed from SQLite: {len(allowed_ids_from_sqlite) if allowed_ids_from_sqlite else 'all'}")
+        return found_ids
     except Exception as e:
-        print(f"Error in clothing item search: {e}")
-        return None
+        logger.error(f"Error in clothing item search: {e}", exc_info=True)
+        return [] # Return empty list on error to maintain type consistency
