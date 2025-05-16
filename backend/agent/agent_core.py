@@ -2,11 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.db.models import get_db
 from backend.agent.schemas import ChatRequest, ChatResponse
+from backend.agent.tools import get_clothing_items, create_clothing_item, get_outfit, create_outfit
+
 from langfuse.callback import CallbackHandler
 from typing import TypedDict, Annotated
-from langchain_core.messages import add_messages
-
-from tools import get_clothing_item, create_clothing_item, get_outfit, create_outfit
+from langgraph.graph.message import add_messages
+from langgraph.graph import StateGraph
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.prebuilt import tools_condition, ToolNode
+from langgraph.graph import START
+from langchain_anthropic import ChatAnthropic
 
 import logging
 import os
@@ -39,7 +44,11 @@ def create_agent():
 
     graph_builder = StateGraph(State)
 
-    tools = [get_clothing_item, create_clothing_item, get_outfit, create_outfit]
+    llm = ChatAnthropic(
+        model="claude-3-haiku-20240307", 
+        anthropic_api_key=ANTHROPIC_API_KEY)
+
+    tools = [get_clothing_items, create_clothing_item, get_outfit, create_outfit]
     llm_with_tools = llm.bind_tools(tools)
 
     def chatbot(state: State):
@@ -57,8 +66,20 @@ def create_agent():
     # Any time a tool is called, we return to the chatbot to decide the next step
     graph_builder.add_edge("tools", "chatbot")
     graph_builder.add_edge(START, "chatbot")
-    graph = graph_builder.compile()
+    graph = graph_builder.compile(checkpointer=checkpointer)
     return graph
+
+agent = create_agent()
+
+def stream_graph_updates(user_input: str):
+    result = agent.invoke({"messages": [{"role": "user", "content": user_input}]}, config={"configurable": {"thread_id": 1}, "callbacks": [langfuse_handler]})
+    try:
+        for event in result:
+            for value in event.values():
+                print("Assistant:", value["messages"][-1].content)
+    except Exception as e:
+        print(result)
+        print(f"Error in stream_graph_updates: {e}")
 
 # Agent routing for API endpoint
 # POST /api/chat
@@ -78,15 +99,7 @@ def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
         # Log the incoming request
         logger.info(f"Backend received chat request: {req}")
 
-        agent = create_agent()
-
-        # Prepare initial state for the agent
-        state = {
-            "messages": [{"role": "user", "content": req.prompt}]
-        }
-
-        response = agent.invoke(state, config={"callbacks": [langfuse_handler]})
-
+        response = stream_graph_updates(req.prompt)
         # Log the response
         logger.info(f"Agent response: {response}")
 
@@ -96,3 +109,26 @@ def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error in chat_endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to process chat request: {str(e)}")
+
+
+if __name__ == '__main__':
+
+    from backend.db.models import Base, engine
+    from backend.db import vector_store  # Import to initialize ChromaDB collections
+
+    logging.basicConfig(level=logging.INFO)
+
+    # DB init
+    Base.metadata.create_all(bind=engine)
+    # ChromaDB embedding collections init
+    vector_store.init_chroma_collections()
+    
+    logger.info("Orchestrator CLI Chat Mode Initialized.")
+    print("Welcome to FitFinder Agent CLI! Type 'exit' or 'quit' to end.")
+
+    while True:
+        user_input = input("User: ")
+        if user_input.lower() in ["quit", "exit", "q"]:
+            print("Goodbye!")
+            break
+        stream_graph_updates(user_input)

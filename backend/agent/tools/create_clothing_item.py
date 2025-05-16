@@ -9,6 +9,7 @@ from backend.services.embedding_service import get_text_embedding
 
 import io
 import uuid
+import numpy as np
 import logging
 import os
 
@@ -19,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 llm = ChatAnthropic(model="claude-3-5-haiku-latest", anthropic_api_key=ANTHROPIC_API_KEY)
 
-@tool("Create clothing item", parse_docstring=True)
+@tool("Create_clothing_item", parse_docstring=True)
 def create_clothing_item(image_url: str) -> dict:
     """
     Creates a new clothing item within FitFinder. Generates a descriptive caption for an image and saves the image file.

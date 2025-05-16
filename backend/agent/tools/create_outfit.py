@@ -2,8 +2,8 @@
 from backend.db import crud
 from typing import List
 from langchain_core.tools import tool
-from backend.db import SessionLocal
-from langchain_core.tools import interrupt
+from backend.db.models import SessionLocal
+from langgraph.types import interrupt
 
 @tool("create_outfit", parse_docstring=True)
 def create_outfit(name: str, list_of_items: List[str], description: str) -> str:

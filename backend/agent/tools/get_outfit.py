@@ -1,11 +1,11 @@
 from backend.db import crud
-from typing import List
+from typing import List, Optional
 from langchain_core.tools import tool
-from backend.db import SessionLocal
+from backend.db.models import SessionLocal, Outfit
 
 
 @tool("get_outfit", parse_docstring=True)
-def get_outfit(outfit_id: str) -> Optional[models.Outfit]:
+def get_outfit(outfit_id: str) -> Optional[Outfit]:
     """
     Get an outfit by ID.
     
@@ -13,7 +13,7 @@ def get_outfit(outfit_id: str) -> Optional[models.Outfit]:
         outfit_id (str): ID of the outfit to retrieve.
     
     Returns:
-        Optional[models.Outfit]: The outfit if found, otherwise None.
+        Optional[Outfit]: The outfit if found, otherwise None.
     """
     #Todo implement search logic rather than just getting by ID. 
     db = SessionLocal()
