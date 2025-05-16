@@ -15,13 +15,24 @@ from backend.agent.clothing_agent import create_clothing_item_agent_graph
 from backend.agent.outfit_agent import create_outfit_designer_agent_graph, OutfitAgentState
 from backend.agent.utils import get_message_details # Import the new utility
 
+from langfuse.callback import CallbackHandler
+
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
+langfuse_handler = CallbackHandler(
+    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+    host="https://us.cloud.langfuse.com"
+)
+
+
 def route_to_agent(state: State) -> str:
+    # This function needs a re-work; I don't like the fragile routing based on keywords, would prefer something more "agnetic"
     last_message = state['messages'][-1]
     content = ""
     if hasattr(last_message, 'content'): 
@@ -40,7 +51,7 @@ def route_to_agent(state: State) -> str:
 def call_clothing_item_agent_node(state: State, agent_executor, llm_unused) -> Dict[str, Any]: 
     logger.info("ORCHESTRATOR: Calling clothing_item_agent")
     sub_agent_state = {'messages': state.get('messages', [])} 
-    result_state = agent_executor.invoke(sub_agent_state)
+    result_state = agent_executor.invoke(sub_agent_state, config={"callbacks": [langfuse_handler]})
     return {"messages": result_state.get("messages", state['messages'])}
 
 def call_outfit_designer_agent_node(state: State, agent_executor, llm_unused) -> Dict[str, Any]: 
@@ -55,7 +66,7 @@ def call_outfit_designer_agent_node(state: State, agent_executor, llm_unused) ->
         current_embedding=[],
         item_candidates=[]
     )
-    result_outfit_state = agent_executor.invoke(initial_outfit_state)
+    result_outfit_state = agent_executor.invoke(initial_outfit_state, config={"callbacks": [langfuse_handler]})
     return {"messages": result_outfit_state.get("messages", state['messages'])}
 
 def create_main_orchestrator_graph(clothing_item_agent_instance, outfit_designer_agent_instance, llm_for_orchestrator_chat_unused):
@@ -116,7 +127,7 @@ def run_agent(state: dict) -> dict:
     initial_graph_state = State(messages=current_state_messages)
     
     try:
-        result_state = main_orchestrator.invoke(initial_graph_state)
+        result_state = main_orchestrator.invoke(initial_graph_state, config={"callbacks": [langfuse_handler]})
         logger.info(f"MAIN ORCHESTRATOR: Execution completed. Result keys: {list(result_state.keys()) if isinstance(result_state, dict) else 'N/A'}")
         return result_state 
     except Exception as e:
@@ -125,7 +136,17 @@ def run_agent(state: dict) -> dict:
         return {"messages": current_state_messages + [error_message]}
 
 if __name__ == '__main__':
+
+    from backend.db.models import Base, engine
+    from backend.db import vector_store  # Import to initialize ChromaDB collections
+
     logging.basicConfig(level=logging.INFO)
+
+    # DB init
+    Base.metadata.create_all(bind=engine)
+    # ChromaDB embedding collections init
+    vector_store.init_chroma_collections()
+    
     logger.info("Orchestrator CLI Chat Mode Initialized.")
     print("Welcome to FitFinder Agent CLI! Type 'exit' or 'quit' to end.")
 

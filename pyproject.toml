@@ -11,6 +11,7 @@ dependencies = [
     "filetype>=1.2.0",
     "langchain>=0.3.24",
     "langchain-anthropic>=0.3.12",
+    "langfuse>=2.60.5",
     "langgraph>=0.4.1",
     "pillow>=11.2.1",
     "pydantic>=2.5.2",
