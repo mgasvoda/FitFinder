@@ -134,25 +134,26 @@ def vector_search_chroma(
     )
 
 
-@tool("search_items", parse_docstring=True)
-def search_clothing_items(
+@tool("get_clothing_items", parse_docstring=True)
+def get_clothing_items(
     query_text: Optional[str] = None, 
     optional_image_url: Optional[str] = None,
     n_results: int = 5,
     filter_metadata: Optional[Dict[str, Any]] = None
 ) -> Optional[List[str]]:
     """
-    Search for individual clothing items based on text query and optional image.
+    Search for clothing items based on text query and optional image.
 
     Args:
         query_text (Optional[str]): Text query for item search.
         optional_image_url (Optional[str]): Optional image URL to include in the search.
         n_results (int): Maximum number of results to return.
-        filter_metadata (Optional[dict]): Optional filter criteria (applied in SQLite first if present).
+        filter_metadata (Optional[dict]): Optional filter criteria. Currently supports filtering by category (one of "top", "bottom", "accessories"), like {"category": "top"}. 
 
     Returns:
         Optional[List[str]]: List of matching clothing item IDs.
     """
+    #TODO: Add description to return value, improve ability to filter out results that aren't a good match. 
     try:
         # 1. Filter in SQLite if filter_metadata is provided
         allowed_ids_from_sqlite = filter_clothing_items_sqlite(filter_metadata) if filter_metadata else None
@@ -196,6 +197,7 @@ def search_clothing_items(
         found_ids = [result.id for result in results]
         logger.info(f"search_items: Vector search found {len(found_ids)} items. Allowed from SQLite: {len(allowed_ids_from_sqlite) if allowed_ids_from_sqlite else 'all'}")
         return found_ids
+
     except Exception as e:
         logger.error(f"Error in clothing item search: {e}", exc_info=True)
         return [] # Return empty list on error to maintain type consistency

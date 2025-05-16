@@ -1,17 +1,16 @@
-from langchain.schema import HumanMessage
-from langchain_anthropic import ChatAnthropic
 from langchain_core.tools import tool
-from backend.agent.tools.image_storage import store_image
+from langchain_anthropic import ChatAnthropic
+
 from fastapi import UploadFile
 from pathlib import Path
-from typing import Optional
+
+from backend.db import crud
+from backend.services.embedding_service import get_text_embedding
 
 import io
 import uuid
-import base64
-import os
 import logging
-
+import os
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -20,12 +19,38 @@ logging.basicConfig(level=logging.INFO)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 llm = ChatAnthropic(model="claude-3-5-haiku-latest", anthropic_api_key=ANTHROPIC_API_KEY)
 
-def _caption_image_impl(image_url: str, prompt: Optional[str] = None) -> dict:
+@tool("Create clothing item", parse_docstring=True)
+def create_clothing_item(image_url: str) -> dict:
     """
-    Core logic for captioning an image, determining its category, and saving it.
+    Creates a new clothing item within FitFinder. Generates a descriptive caption for an image and saves the image file.
+
+    Args:
+        image_url: URL or local path to the image.
+
+    Returns:
+        A dictionary containing the caption, category, and image metadata.
+    """
+    item_id = uuid.uuid4()
+
+    caption, category = caption_image(image_url, item_id) #image is saved during storage step
+    embedding = embed_step(caption)
+    persist_db_step(caption, image_url, embedding, category, item_id)
+
+    return {'item_id': item_id, 'caption': caption, 'category': category}
+
+
+def caption_image(image_url: str, item_id: str) -> dict:
+    """
+    Begin the workflow for storing a new clothing item. Generates a descriptive caption for an image and saves the image file.
+
+    Args:
+        image_url: URL or local path to the image.
+        item_id: Item ID.
+
+    Returns:
+        A dictionary containing the caption, category, and image metadata.
     """
     logger.info(f"Captioning and categorizing image from source: {image_url}")
-    item_id = str(uuid.uuid4())  # Generate a unique ID for this item
 
     default_prompt = (
         "Generate a descriptive caption for the clothing item in this image. "
@@ -35,7 +60,6 @@ def _caption_image_impl(image_url: str, prompt: Optional[str] = None) -> dict:
         "The category MUST be one of the following: top, bottom, shoes, accessories."
         "Format the category line like this: 'Category: <chosen_category>'."
     )
-    current_prompt = prompt if prompt else default_prompt
     
     try:
         # Load image data
@@ -65,7 +89,7 @@ def _caption_image_impl(image_url: str, prompt: Optional[str] = None) -> dict:
         img_base64 = base64.b64encode(img_bytes).decode()
         content = [
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}},
-            {"type": "text", "text": current_prompt}
+            {"type": "text", "text": default_prompt}
         ]
         
         # Get caption and category from Claude
@@ -123,16 +147,94 @@ def _caption_image_impl(image_url: str, prompt: Optional[str] = None) -> dict:
             "image_url": None
         }
 
-@tool("caption_image", parse_docstring=True)
-def caption_image(image_url: str, prompt: Optional[str] = None) -> dict:
+def store_image(image, item_id=None):
     """
-    Begin the workflow for storing a new clothing item. Generates a descriptive caption for an image and saves the image file.
-
+    Store an uploaded clothing item image
+    
     Args:
-        image_url: URL or local path to the image.
-        prompt: Optional custom prompt.
-
+        image: The uploaded image file or a file path string
+        item_id: Optional item ID (generated if not provided)
+        
     Returns:
-        A dictionary containing the caption, category, and image metadata.
+        Tuple of (image_url, item_id)
     """
-    return _caption_image_impl(image_url, prompt)
+    
+    # If image is a string (file path), convert it to a UploadFile object
+    if isinstance(image, str):
+        try:
+            # Get the file name from the path
+            file_path = Path(image)
+            file_name = file_path.name
+            
+            # Read the file content
+            with open(image, 'rb') as f:
+                file_content = f.read()
+            
+            # Create a file-like object
+            file_obj = io.BytesIO(file_content)
+            
+            # Create a UploadFile object
+            upload_file = UploadFile(
+                filename=file_name,
+                file=file_obj
+            )
+            
+            return store_clothing_image(upload_file, item_id)
+        except Exception as e:
+            import logging
+            logging.error(f"Error converting file path to UploadFile: {e}")
+            raise
+    else:
+        # If it's already a UploadFile, use it directly
+        return store_clothing_image(image, item_id)
+
+
+def embed_step(caption: str):
+    """Generate embeddings for the caption text."""
+    logger.info("Running embed_step...")
+    
+    try:
+        # Get embedding for the caption
+        embedding = get_text_embedding(caption)
+        # Update state with the embedding
+        return embedding
+
+    except Exception as e:
+        logger.error(f"Error generating embedding: {e}", exc_info=True)
+        # Return original state on error
+        return None
+
+def persist_db_step(caption: str, image_url: str, embedding: np.ndarray, category: str, item_id: str):
+    """Persist the item to the database with its caption and embedding."""
+    logger.info("Running persist_db_step...")
+    
+    logger.info(f"Persisting item with caption: {caption[:50]}...")
+    logger.info(f"Image URL: {image_url}")
+    logger.info(f"Category: {category}") # Log the category
+    logger.info(f"Embedding available: {embedding is not None}")
+    
+    try:
+        # Create a database session
+        db = SessionLocal()
+        
+        try:
+            # Create the clothing item in the database
+            db_item = crud.create_clothing_item(
+                db=db,
+                item_id=item_id,
+                description=caption,
+                image_url=image_url,
+                embedding=embedding,
+                category=category  # Pass category to CRUD function
+            )
+            
+            logger.info(f"Created clothing item in database with ID: {db_item.id}")
+
+            return db_item.id
+        finally:
+            # Always close the database session
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error persisting to database: {e}")
+        return None
