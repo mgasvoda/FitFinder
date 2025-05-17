@@ -26,8 +26,8 @@ Base.metadata.create_all(bind=engine)
 vector_store.init_chroma_collections()
 
 # Mount agent (API) router
-app.include_router(agent_router, prefix="/agent")
-app.include_router(core_router, prefix="/api")
+app.include_router(agent_router, prefix="/api")
+# app.include_router(core_router, prefix="/api")
 
 @app.get("/")
 def root():

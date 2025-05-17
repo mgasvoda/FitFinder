@@ -96,13 +96,20 @@ def stream_graph_updates(user_input: str):
         }
     )
     try:
-        print(result['messages'][-1].content)
+        response = result['messages'][-1].content
+        # print(response)
+        return response 
     except Exception as e:
-        print(result)
-        print(f"Error in stream_graph_updates: {e}")
+        # print(result)
+        logger.error(f"Error in stream_graph_updates: {e}")
+
+# Debug endpoint to verify router registration
+@agent_router.get("/debug")
+def debug_endpoint():
+    return {"status": "Agent router is working"}
 
 # Agent routing for API endpoint
-# POST /api/chat
+# POST /agent/chat
 @agent_router.post("/chat", response_model=ChatResponse)
 def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
     """
@@ -151,4 +158,4 @@ if __name__ == '__main__':
         if user_input.lower() in ["quit", "exit", "q"]:
             print("Goodbye!")
             break
-        stream_graph_updates(user_input)
+        print(stream_graph_updates(user_input))

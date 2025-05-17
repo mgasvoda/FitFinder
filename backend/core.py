@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional, List
-from backend.agent.tools.image_storage import remove_image
 from backend.agent.schemas import ItemResponse
 from backend.db import crud, models
 from backend.db.models import get_db
@@ -125,8 +124,8 @@ def delete_item(item_id: str, db: Session = Depends(get_db)):
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete item")
         
-        # Delete the image file
-        remove_image(db_item.image_url)
+        # Delete the image file - TODO need to fix
+        # remove_image(db_item.image_url)
         
         return {"message": "Item deleted successfully"}
     except HTTPException:
