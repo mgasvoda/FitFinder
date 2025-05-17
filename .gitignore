@@ -3,6 +3,7 @@
 /frontend/.next
 /backend/uv.lock
 /backend/.venv
+/frontend/android
 
 
 **/__pycache__

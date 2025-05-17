@@ -1,5 +1,6 @@
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Using relative paths to hit our Next.js API routes
+const API_BASE_URL = ''; // Empty because we're using relative paths
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
 
 // Common headers for all requests
@@ -11,16 +12,19 @@ const getHeaders = (contentType: string = 'application/json') => ({
 // Generic request handler
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  contentType: string = 'application/json'
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
   // Ensure headers are properly set
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
+    headers.set('Content-Type', contentType);
   }
-  headers.set('X-API-Key', API_KEY);
+  if (API_KEY) {
+    headers.set('X-API-Key', API_KEY);
+  }
 
   try {
     const response = await fetch(url, {
@@ -63,23 +67,18 @@ export async function uploadItem(formData: FormData): Promise<UploadItemResponse
   return apiRequest<UploadItemResponse>('/api/upload', {
     method: 'POST',
     body: formData,
-  });
+  }, 'multipart/form-data');
 }
 
 export async function chatWithAssistant(
   prompt: string, 
   optionalImageUrl?: string
 ): Promise<ChatResponse> {
-  console.log('Sending chat request:', { prompt, optionalImageUrl });
-  
-  const response = await apiRequest<ChatResponse>('/api/chat', {
+  return apiRequest<ChatResponse>('/api/chat', {
     method: 'POST',
     body: JSON.stringify({ 
-      prompt, 
-      optional_image_url: optionalImageUrl 
+      prompt,
+      ...(optionalImageUrl && { image_url: optionalImageUrl }) 
     }),
   });
-
-  console.log('Received chat response:', response);
-  return response;
 }

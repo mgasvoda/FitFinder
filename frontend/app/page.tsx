@@ -27,7 +27,7 @@ export default function Home() {
       const response = await chatWithAssistant(userMessage);
       
       // Add assistant message
-      setMessages(prev => [...prev, { type: 'assistant', content: response.response_text }]);
+      setMessages(prev => [...prev, { type: 'assistant', content: response.response }]);
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => [...prev, { type: 'assistant', content: 'Sorry, there was an error processing your request.' }]);
