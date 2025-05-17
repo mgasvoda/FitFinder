@@ -11,6 +11,7 @@ fitfinder.db
 **/dev/**
 uv.lock
 .env
+.env.local
 chroma_db/**
 
 images/**
