@@ -1,18 +1,27 @@
 .windsurfrules
+
+# Frontend
 /frontend/node_modules
 /frontend/.next
+/frontend/out
+/frontend/android
+/frontend/.capacitor
+
+# Backend
 /backend/uv.lock
 /backend/.venv
-/frontend/android
 
-
+# Python
 **/__pycache__
 fitfinder.db
 
+# Environment
 **/dev/**
 uv.lock
 .env
 .env.local
+
+# Chroma DB
 chroma_db/**
 
-images/**
+# Images/images/**
