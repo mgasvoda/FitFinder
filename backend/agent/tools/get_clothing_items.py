@@ -104,7 +104,7 @@ def filter_clothing_items_sqlite(tags: Optional[Dict[str, Any]] = None) -> List[
             if hasattr(models.ClothingItem, key):
                 query = query.filter(getattr(models.ClothingItem, key) == value)
             # Add more sophisticated tag filtering as needed (e.g., for many-to-many tags)
-    return [item.id for item in query.all()]
+    return [{"id": item.id, "description": item.description} for item in query.all()]
 
 
 def vector_search_chroma(
@@ -156,14 +156,18 @@ def get_clothing_items(
     #TODO: Add description to return value, improve ability to filter out results that aren't a good match. 
     try:
         # 1. Filter in SQLite if filter_metadata is provided
-        allowed_ids_from_sqlite = filter_clothing_items_sqlite(filter_metadata) if filter_metadata else None
+        if filter_metadata:
+            sqlite_results = filter_clothing_items_sqlite(filter_metadata)
+            allowed_ids_from_sqlite = [result["id"] for result in sqlite_results]
+        else:
+            allowed_ids_from_sqlite = None
 
         # Handle case where only filter_metadata is used (no text or image query)
         if query_text is None and optional_image_url is None:
             if allowed_ids_from_sqlite is not None:
                 logger.info(f"search_items: Returning {len(allowed_ids_from_sqlite)} IDs directly from SQLite filter.")
                 # Ensure n_results is respected if list is too long, though SQLite filter might not have this concept directly
-                return allowed_ids_from_sqlite[:n_results] if n_results > 0 else allowed_ids_from_sqlite
+                return sqlite_results[:n_results] if n_results > 0 else sqlite_results
             else:
                 logger.info("search_items: Called with no query, no image, and no matching SQLite filter. Returning empty list.")
                 return []
@@ -183,8 +187,8 @@ def get_clothing_items(
             # Or if embedding generation failed silently (should raise error in embedding functions ideally)
             logger.warning("search_items: Embedding could not be generated, and not a filter-only query. Returning empty list.")
             if allowed_ids_from_sqlite is not None: # Fallback to SQLite results if available
-                 logger.info(f"search_items: Falling back to {len(allowed_ids_from_sqlite)} SQLite results as embedding failed.")
-                 return allowed_ids_from_sqlite[:n_results] if n_results > 0 else allowed_ids_from_sqlite
+                logger.info(f"search_items: Falling back to {len(allowed_ids_from_sqlite)} SQLite results as embedding failed.")
+                return sqlite_results[:n_results] if n_results > 0 else sqlite_results
             return []
 
         # 3. Vector search in Chroma, restricted to allowed_ids_from_sqlite if any
@@ -194,9 +198,9 @@ def get_clothing_items(
             n_results=n_results,
             collection_name="clothing_items"
         )
-        found_ids = [result.id for result in results]
-        logger.info(f"search_items: Vector search found {len(found_ids)} items. Allowed from SQLite: {len(allowed_ids_from_sqlite) if allowed_ids_from_sqlite else 'all'}")
-        return found_ids
+        found_items = [{"id": result.id, "description": result.metadata.description} for result in results]
+        logger.info(f"search_items: Vector search found {len(found_items)} items. Allowed from SQLite: {len(allowed_ids_from_sqlite) if allowed_ids_from_sqlite else 'all'}")
+        return found_items
 
     except Exception as e:
         logger.error(f"Error in clothing item search: {e}", exc_info=True)

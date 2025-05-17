@@ -34,6 +34,16 @@ langfuse_handler = CallbackHandler(
     host="https://us.cloud.langfuse.com"
 )
 
+# Define the system prompt
+SYSTEM_PROMPT = """You are FitFinder, an AI fashion assistant that helps users manage their wardrobe and create outfits. 
+Your capabilities include:
+    - Adding new clothing items to the user's wardrobe
+    - Retrieving clothing items based on filters
+    - Creating and suggesting complete outfits
+    - Answering questions about fashion and styling
+    
+    Always be helpful, friendly, and professional in your responses. If you're unsure about something, 
+    ask clarifying questions rather than making assumptions."""
 # Agent definition
 
 class State (TypedDict):
@@ -46,7 +56,9 @@ def create_agent():
 
     llm = ChatAnthropic(
         model="claude-3-haiku-20240307", 
-        anthropic_api_key=ANTHROPIC_API_KEY)
+        anthropic_api_key=ANTHROPIC_API_KEY,
+        temperature=0.1,
+    )
 
     tools = [get_clothing_items, create_clothing_item, get_outfit, create_outfit]
     llm_with_tools = llm.bind_tools(tools)
@@ -66,17 +78,25 @@ def create_agent():
     # Any time a tool is called, we return to the chatbot to decide the next step
     graph_builder.add_edge("tools", "chatbot")
     graph_builder.add_edge(START, "chatbot")
-    graph = graph_builder.compile(checkpointer=checkpointer)
+    graph = graph_builder.compile(checkpointer=checkpointer, )
     return graph
 
 agent = create_agent()
+agent.invoke({"messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Hello"}]}, config={
+            "configurable": {"thread_id": 1}, 
+            "callbacks": [langfuse_handler]
+        })
 
 def stream_graph_updates(user_input: str):
-    result = agent.invoke({"messages": [{"role": "user", "content": user_input}]}, config={"configurable": {"thread_id": 1}, "callbacks": [langfuse_handler]})
+    result = agent.invoke(
+        {"messages": [{"role": "user", "content": user_input}]}, 
+        config={
+            "configurable": {"thread_id": 1}, 
+            "callbacks": [langfuse_handler]
+        }
+    )
     try:
-        for event in result:
-            for value in event.values():
-                print("Assistant:", value["messages"][-1].content)
+        print(result['messages'][-1].content)
     except Exception as e:
         print(result)
         print(f"Error in stream_graph_updates: {e}")
