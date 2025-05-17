@@ -1,30 +1,38 @@
-[project]
+[tool.poetry]
 name = "fitfinder-backend"
 version = "0.1.0"
 description = "Backend for FitFinder"
-authors = [
-    { name="Your Name", email="your@email.com" }
-]
-dependencies = [
-    "chromadb>=1.0.7",
-    "fastapi>=0.95.2",
-    "filetype>=1.2.0",
-    "langchain>=0.3.24",
-    "langchain-anthropic>=0.3.12",
-    "langfuse>=2.60.5",
-    "langgraph>=0.4.1",
-    "pillow>=11.2.1",
-    "pydantic>=2.5.2",
-    "pytest>=8.3.5",
-    "python-multipart>=0.0.20",
-    "sqlalchemy>=2.0.40",
-    "torch>=2.7.0",
-    "transformers>=4.51.3",
-    "uvicorn>=0.34.2",
-]
+authors = ["Your Name <your@email.com>"]
+readme = "README.md"
+packages = [{include = "backend"}]
 
-[dependency-groups]
-dev = [
-    "ipykernel>=6.29.5",
-    "pytest>=8.3.5",
-]
+[tool.poetry.dependencies]
+python = "^3.9,<3.14"
+chromadb = "^1.0.7"
+fastapi = "^0.115.9"
+filetype = "^1.2.0"
+langchain = "^0.3.24"
+langchain-anthropic = "^0.3.12"
+langfuse = "^2.60.5"
+langgraph = "^0.4.1"
+pillow = "^11.2.1"
+pydantic = "^2.11.3"
+python-multipart = "^0.0.20"
+sqlalchemy = "^2.0.40"
+torch = "^2.7.0"
+transformers = "^4.51.3"
+uvicorn = {extras = ["standard"], version = "^0.34.2"}
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
+pytest = "^8.3.5"
+black = "^24.4.0"
+isort = "^5.13.2"
+mypy = "^1.9.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+start = "backend.main:app"

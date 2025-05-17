@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: fitfinder-backend
+    env: python
+    buildCommand: pip install poetry && poetry install --no-interaction --no-ansi
+    startCommand: poetry run uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: PYTHONUNBUFFERED
+        value: true
+    autoDeploy: true
