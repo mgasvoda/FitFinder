@@ -11,6 +11,9 @@
 /backend/uv.lock
 /backend/.venv
 
+# Docker
+docker-compose.yml
+
 # Python
 **/__pycache__
 fitfinder.db

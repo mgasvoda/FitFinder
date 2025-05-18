@@ -1,7 +1,14 @@
 // API Configuration
-// Using relative paths to hit our Next.js API routes
-const API_BASE_URL = ''; // Empty because we're using relative paths
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
+// Using environment-specific configuration
+const API_BASE_URL = ''; // Empty for Next.js API routes in web context
+const API_KEY = process.env.API_KEY || '';
+
+// For Capacitor mobile apps - handles special Android emulator case
+const isAndroid = typeof window !== 'undefined' && window.navigator.userAgent.includes('Android');
+const isEmulator = typeof window !== 'undefined' && window.navigator.userAgent.includes('Emulator');
+
+// Use this flag to determine if we should bypass the Next.js API route in mobile contexts
+const shouldUseDirectBackendCalls = isAndroid;
 
 // Common headers for all requests
 const getHeaders = (contentType: string = 'application/json') => ({
@@ -9,13 +16,29 @@ const getHeaders = (contentType: string = 'application/json') => ({
   'X-API-Key': API_KEY,
 });
 
+// Backend URL for direct calls (used in Capacitor/Android)
+// Use environment variable in production builds, fallback for development
+const DIRECT_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://192.168.1.171:8000';
+
 // Generic request handler
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {},
   contentType: string = 'application/json'
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  // For Android, we might want to call the backend directly instead of through Next.js API routes
+  let url;
+  
+  if (shouldUseDirectBackendCalls && endpoint.startsWith('/api/')) {
+    // Special case for Android emulator - use 10.0.2.2 to access host machine
+    const backendHost = isEmulator ? 'http://10.0.2.2:8000' : DIRECT_BACKEND_URL;
+    // Convert /api/chat to /api/chat (matching the backend endpoint)
+    url = `${backendHost}${endpoint}`;
+    console.log(`Using direct backend URL: ${url}`);
+  } else {
+    // Standard web approach - use Next.js API routes
+    url = `${API_BASE_URL}${endpoint}`;
+  }
   
   // Ensure headers are properly set
   const headers = new Headers(options.headers);

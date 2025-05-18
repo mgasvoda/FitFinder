@@ -1,6 +1,7 @@
 // This utility handles API calls in both web and native environments
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
 
 type HttpHeaders = {
   [key: string]: string;
@@ -15,6 +16,7 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}): Pro
       // Convert headers to a format compatible with Capacitor
       const headers: HttpHeaders = {
         'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
         ...(options.headers as HttpHeaders || {})
       };
       
@@ -40,7 +42,15 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}): Pro
   }
   
   // In a web context, use the standard fetch API
-  return fetch(`${API_BASE_URL}${endpoint}`, options);
+  const headers = new Headers(options.headers || {});
+  if (API_KEY) {
+    headers.set('X-API-Key', API_KEY);
+  }
+  
+  return fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers
+  });
 }
 
 // Example API functions

@@ -6,6 +6,11 @@ from backend.core import core_router
 from backend.db.models import Base, engine
 from backend.db import vector_store
 import os
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Configuration
 API_KEY = os.getenv("API_KEY", "default-super-secret-key")  # Change this in production
@@ -16,17 +21,20 @@ app = FastAPI(title="FitFinder Backend", docs_url="/api/docs", redoc_url="/api/r
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(","),
+    allow_origins=["*"],  # In production, replace with your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["x-api-key", "X-API-Key"],  # Explicitly expose the API key header
 )
 
 # API Key validation
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
-
-async def verify_api_key(api_key: str = Depends(api_key_header)):
-    if api_key != API_KEY:
+async def verify_api_key(request: Request):
+    logger.info(f"Headers: {request.headers}")
+    # Try to get API key from headers (case-insensitive)
+    api_key = request.headers.get('X-API-Key') or request.headers.get('x-api-key')
+    
+    if not api_key or api_key != API_KEY:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid API Key",
@@ -56,6 +64,30 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+    import socket
+    
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True)
+    host = os.getenv("HOST", "0.0.0.0")
+    
+    # Get local IP address for better logging
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        logger.info(f"Local IP address: {local_ip}")
+        logger.info(f"Network IP address: 192.168.1.171")
+    except Exception as e:
+        logger.warning(f"Could not determine local IP: {e}")
+    
+    logger.info(f"Starting server on http://{host}:{port}")
+    logger.info(f"API Documentation available at http://{host}:{port}/api/docs")
+    
+    uvicorn.run(
+        "backend.main:app",
+        host=host,
+        port=port,
+        reload=True,
+        log_level="info"
+    )
     

@@ -1,11 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Keep static export for now, but consider using 'standalone' if you need runtime env vars
   output: 'export',
+  
+  // Environment variables that should be available at runtime
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_API_KEY: process.env.NEXT_PUBLIC_API_KEY,
+  },
+  
   images: {
     unoptimized: true,
   },
   // Configure page extensions to include .page.jsx and .page.tsx
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  
   // Disable server-side rendering for API routes
   experimental: {
     // Enable the App Router
