@@ -1,83 +1,158 @@
 # FitFinder
 
-A smart outfit recommendation system that helps you find the perfect outfit from your wardrobe using AI.
+A smart AI fashion assistant that helps you manage your wardrobe and create outfits using a conversational chat interface.
 
-## Project Structure
+## 🌟 Features
 
-- `backend/` - FastAPI backend with AI agent orchestration
-- `frontend/` - Next.js frontend application
-- `docs/` - Project documentation and architecture
+- **Smart Wardrobe Management**: Add and organize clothing items with AI-powered descriptions
+- **Outfit Creation**: Generate complete outfits based on your preferences and items
+- **Natural Language Interface**: Chat with your AI fashion assistant using natural language
+- **Secure Authentication**: User login system with role-based access
+- **Vector Search**: Find similar items using advanced embedding-based search
 
-## Prerequisites
+## 🏗️ Project Structure
+
+- `backend/` - Core application with AI agent and database
+- `backend/auth/` - User authentication system
+- `backend/agent/` - AI fashion assistant (LangGraph + Anthropic Claude)
+- `backend/db/` - Database models and vector storage
+- `docs/` - Project documentation
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 - Python 3.9+
-- Node.js 18+ (for frontend development)
-- Poetry (for Python dependency management)
+- Poetry (for dependency management)
+- Anthropic API key
 
-## Backend Setup
+### 1. Install Dependencies
 
-1. Install Poetry (if not already installed):
-   ```bash
-   curl -sSL https://install.python-poetry.org | python3 -
-   ```
+```bash
+# Install Poetry (if not already installed)
+curl -sSL https://install.python-poetry.org | python3 -
 
-2. Install dependencies:
-   ```bash
-   poetry install
-   ```
+# Install project dependencies
+poetry install
+```
 
-3. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+### 2. Configure Environment
 
-4. Run the development server:
-   ```bash
-   poetry run uvicorn backend.main:app --reload
-   ```
+```bash
+# Copy the example environment file
+cp env.example .env
 
-## Frontend Setup
+# Edit .env with your settings
+# Required: Add your ANTHROPIC_API_KEY
+```
 
-1. Install dependencies:
-   ```bash
-   cd frontend
-   npm install
-   ```
+### 3. Run FitFinder
 
-2. Set up environment variables:
-   ```bash
-   cp .env.local.example .env.local
-   # Edit .env.local with your configuration
-   ```
+**Option A: Simple startup script**
+```bash
+python start_fitfinder_chainlit.py
+```
 
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
+**Option B: Direct chainlit command**
+```bash
+chainlit run backend/chainlit_app.py --port 8001
+```
 
-## Development
+### 4. Access the Interface
 
-- Run tests:
-  ```bash
-  poetry run pytest
-  ```
+- Open your browser to `http://localhost:8001`
+- Login with default credentials: `admin` / `fitfinder2024!`
+- Start chatting with your AI fashion assistant!
 
-- Format code:
-  ```bash
-  poetry run black .
-  poetry run isort .
-  ```
+## ⚙️ Configuration
 
-- Type checking:
-  ```bash
-  poetry run mypy .
-  ```
+### Environment Variables
 
-## Deployment
+Create a `.env` file with these variables:
 
-This project is configured for deployment on Render. The `render.yaml` file contains the deployment configuration.
+```bash
+# Required: AI service API key
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
 
-## License
+# Optional: Custom admin credentials
+CHAINLIT_ADMIN_USERNAME=admin
+CHAINLIT_ADMIN_PASSWORD=your-secure-password
+
+# Optional: Database location
+DATABASE_URL=sqlite:///./fitfinder.db
+```
+
+### User Management
+
+Manage users with the built-in utility:
+
+```bash
+# Interactive user management
+python -m backend.auth.user_manager
+
+# Add a user via command line
+python -m backend.auth.user_manager --add
+```
+
+## 🛠️ Development
+
+### Testing the Agent
+
+Test the AI agent directly in CLI mode:
+
+```bash
+python -m backend.agent.agent_core
+```
+
+### Code Quality
+
+```bash
+# Run tests
+poetry run pytest
+
+# Format code
+poetry run black .
+poetry run isort .
+
+# Type checking
+poetry run mypy .
+```
+
+### Architecture
+
+- **LangGraph Agent**: Orchestrates AI tools and conversation flow
+- **Anthropic Claude**: Powers the conversational AI
+- **SQLite**: Stores clothing items and outfit data
+- **ChromaDB**: Vector database for similarity search
+- **Chainlit**: Provides the chat interface and authentication
+
+## 📚 Documentation
+
+- [`AUTH_SETUP.md`](AUTH_SETUP.md) - Authentication setup and user management
+- [`docs/`](docs/) - Architecture and development guides
+
+## 🚀 Deployment
+
+The application is configured for deployment on Render. See `render.yaml` for deployment configuration.
+
+## 📝 Example Usage
+
+```
+User: "Add a blue cotton t-shirt to my wardrobe"
+FitFinder: "I've added a blue cotton t-shirt to your wardrobe! Would you like me to suggest some outfits that would go well with it?"
+
+User: "Create a casual summer outfit using that t-shirt"
+FitFinder: "Here's a great casual summer outfit..."
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and formatting
+5. Submit a pull request
+
+## 📄 License
 
 MIT
