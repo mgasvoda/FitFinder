@@ -1,7 +1,7 @@
 // API Configuration
 // Using environment-specific configuration
 const API_BASE_URL = ''; // Empty for Next.js API routes in web context
-const API_KEY = process.env.API_KEY || '';
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || '';
 
 // For Capacitor mobile apps - handles special Android emulator case
 const isAndroid = typeof window !== 'undefined' && window.navigator.userAgent.includes('Android');
@@ -32,12 +32,13 @@ async function apiRequest<T>(
   if (shouldUseDirectBackendCalls && endpoint.startsWith('/api/')) {
     // Special case for Android emulator - use 10.0.2.2 to access host machine
     const backendHost = isEmulator ? 'http://10.0.2.2:8000' : DIRECT_BACKEND_URL;
-    // Convert /api/chat to /api/chat (matching the backend endpoint)
+    // Convert /api/chat to /api/chat (keep the same path structure)
     url = `${backendHost}${endpoint}`;
-    console.log(`Using direct backend URL: ${url}`);
+    console.log(`[API] Using direct backend URL: ${url}`);
   } else {
     // Standard web approach - use Next.js API routes
     url = `${API_BASE_URL}${endpoint}`;
+    console.log(`[API] Using Next.js API route: ${url}`);
   }
   
   // Ensure headers are properly set
@@ -47,7 +48,13 @@ async function apiRequest<T>(
   }
   if (API_KEY) {
     headers.set('X-API-Key', API_KEY);
+    console.log(`[API] Using API key: ${API_KEY.substring(0, 8)}...`);
+  } else {
+    console.warn('[API] No API key found in environment variables');
   }
+
+  console.log(`[API] Making ${options.method || 'GET'} request to: ${url}`);
+  console.log(`[API] Headers:`, Object.fromEntries(headers.entries()));
 
   try {
     const response = await fetch(url, {
@@ -55,16 +62,26 @@ async function apiRequest<T>(
       headers,
     });
 
+    console.log(`[API] Response status: ${response.status}`);
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || 'An error occurred');
+      const errorText = await response.text();
+      console.error(`[API] Error response:`, errorText);
+      let error;
+      try {
+        error = JSON.parse(errorText);
+      } catch {
+        error = { message: errorText || `HTTP ${response.status}` };
+      }
+      throw new Error(error.message || error.detail || 'An error occurred');
     }
 
     // Handle empty responses
     const text = await response.text();
+    console.log(`[API] Response text:`, text);
     return text ? JSON.parse(text) : {} as T;
   } catch (error) {
-    console.error('API Request Error:', error);
+    console.error('[API] Request Error:', error);
     throw error;
   }
 }
@@ -82,7 +99,7 @@ export interface ChatMessage {
 }
 
 export interface ChatResponse {
-  response: string;
+  response_text: string;
 }
 
 // API Functions

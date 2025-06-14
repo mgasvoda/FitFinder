@@ -26,7 +26,7 @@ export default function ChatPage() {
       console.log('Received response:', response);
       
       // Add assistant message
-      setMessages(prev => [...prev, { type: 'assistant', content: response.response }]);
+      setMessages(prev => [...prev, { type: 'assistant', content: response.response_text }]);
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => [...prev, { type: 'assistant', content: 'Sorry, there was an error processing your request.' }]);

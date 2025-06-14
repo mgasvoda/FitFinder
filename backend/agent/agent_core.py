@@ -28,11 +28,11 @@ agent_router = APIRouter()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-langfuse_handler = CallbackHandler(
-    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    host="https://us.cloud.langfuse.com"
-)
+# langfuse_handler = CallbackHandler(
+#     public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+#     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+#     host="https://us.cloud.langfuse.com"
+# )
 
 # Define the system prompt
 SYSTEM_PROMPT = """You are FitFinder, an AI fashion assistant that helps users manage their wardrobe and create outfits. 
@@ -83,16 +83,14 @@ def create_agent():
 
 agent = create_agent()
 agent.invoke({"messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Hello"}]}, config={
-            "configurable": {"thread_id": 1}, 
-            "callbacks": [langfuse_handler]
+            "configurable": {"thread_id": 1}
         })
 
 def stream_graph_updates(user_input: str):
     result = agent.invoke(
         {"messages": [{"role": "user", "content": user_input}]}, 
         config={
-            "configurable": {"thread_id": 1}, 
-            "callbacks": [langfuse_handler]
+            "configurable": {"thread_id": 1}
         }
     )
     try:

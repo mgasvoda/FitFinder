@@ -23,7 +23,7 @@ export default function Chat() {
     mutationFn: chatWithAssistant,
     onSuccess: (data) => {
       console.log('Mutation success, received data:', data);
-      setMessages(prev => [...prev, { type: 'assistant', content: data.response }]);
+      setMessages(prev => [...prev, { type: 'assistant', content: data.response_text }]);
       reset();
     },
     onError: (error) => {
