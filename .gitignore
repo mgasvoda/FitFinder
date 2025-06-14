@@ -23,6 +23,7 @@ fitfinder.db
 uv.lock
 .env
 .env.local
+.chainlit
 
 # Chroma DB
 chroma_db/**

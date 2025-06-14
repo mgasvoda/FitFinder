@@ -1,13 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-from backend.agent.agent_core import agent_router
+from backend.agent.agent_core import agent_router, stream_graph_updates
 from backend.core import core_router
 from backend.db.models import Base, engine
 from backend.db import vector_store
 import os
 import logging
-
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -60,7 +59,6 @@ def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-
 
 if __name__ == "__main__":
     import uvicorn
