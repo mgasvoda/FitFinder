@@ -35,13 +35,17 @@ def create_clothing_item(image_url: str) -> dict:
     Returns:
         A dictionary containing the caption, category, and image metadata.
     """
-    item_id = uuid.uuid4()
+    item_id = str(uuid.uuid4())
 
-    caption, category = caption_image(image_url, item_id) #image is saved during storage step
+    result = caption_image(image_url, item_id) #image is saved during storage step
+    caption = result["caption"]
+    category = result["category"]
+    saved_image_url = result["image_url"]
+    
     embedding = embed_step(caption)
-    persist_db_step(caption, image_url, embedding, category, item_id)
+    persist_db_step(caption, saved_image_url, embedding, category, item_id)
 
-    return {'item_id': item_id, 'caption': caption, 'category': category}
+    return {'item_id': item_id, 'caption': caption, 'category': category, 'image_url': saved_image_url}
 
 
 def caption_image(image_url: str, item_id: str) -> dict:

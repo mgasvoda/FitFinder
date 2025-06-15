@@ -31,19 +31,52 @@ async def main(message: cl.Message):
         
         logger.info(f"Received message from {user_info}: {message.content}")
         
-        # Show typing indicator with step
-        async with cl.Step(name="🤔 Thinking...") as step:
-            # Use the agent functionality directly
-            response = stream_graph_updates(message.content)
+        # Check if message contains file attachments (images)
+        if message.elements:
+            logger.info(f"Found {len(message.elements)} attachments")
             
-            if response and response.strip():
-                step.output = "Agent processed successfully ✅"
-                await cl.Message(content=response).send()
-            else:
-                step.output = "No response generated ⚠️"
-                await cl.Message(
-                    content="I'm sorry, I couldn't process your request. Please try again or rephrase your question."
-                ).send()
+            # Show typing indicator with step
+            async with cl.Step(name="📸 Processing image...") as step:
+                for element in message.elements:
+                    if hasattr(element, 'path') and element.path:
+                        logger.info(f"Processing image: {element.path}")
+                        try:
+                            # Use the agent functionality to create clothing item from image
+                            user_input = f"Please create a clothing item from this image: {element.path}"
+                            if message.content.strip():
+                                user_input += f" User notes: {message.content}"
+                            
+                            response = stream_graph_updates(user_input)
+                            
+                            if response and response.strip():
+                                step.output = "Image processed successfully ✅"
+                                await cl.Message(content=response).send()
+                            else:
+                                step.output = "Failed to process image ⚠️"
+                                await cl.Message(
+                                    content="I'm sorry, I couldn't process your image. Please try again."
+                                ).send()
+                                
+                        except Exception as e:
+                            logger.error(f"Error processing image: {e}")
+                            step.output = f"Error processing image: {str(e)}"
+                            await cl.Message(
+                                content="⚠️ I encountered an error processing your image. Please try again."
+                            ).send()
+        else:
+            # Handle text-only messages
+            async with cl.Step(name="🤔 Thinking...") as step:
+                # Use the agent functionality directly
+                response = stream_graph_updates(message.content)
+                
+                if response and response.strip():
+                    step.output = "Agent processed successfully ✅"
+                    await cl.Message(content=response).send()
+                else:
+                    step.output = "No response generated ⚠️"
+                    await cl.Message(
+                        content="I'm sorry, I couldn't process your request. Please try again or rephrase your question."
+                    ).send()
                 
     except Exception as e:
         user = get_current_user()
