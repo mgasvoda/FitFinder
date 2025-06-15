@@ -1,17 +1,21 @@
 from langchain_core.tools import tool
 from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import HumanMessage
 
 from fastapi import UploadFile
 from pathlib import Path
 
 from backend.db import crud
+from backend.db.models import SessionLocal
 from backend.services.embedding_service import get_text_embedding
+from backend.services.storage_service import store_clothing_image
 
 import io
 import uuid
 import numpy as np
 import logging
 import os
+import base64
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

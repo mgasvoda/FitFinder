@@ -27,5 +27,6 @@ uv.lock
 
 # Chroma DB
 chroma_db/**
+.files/**
 
 # Images/images/**

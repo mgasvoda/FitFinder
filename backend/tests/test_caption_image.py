@@ -2,7 +2,7 @@ import io
 import base64
 import pytest
 from unittest.mock import patch, MagicMock
-from backend.agent.tools import caption_image
+from backend.agent.tools.create_clothing_item import caption_image
 
 # Helper: Fake UploadFile for mocking
 class FakeUploadFile:
@@ -30,15 +30,15 @@ def mock_llm_generate(msgs):
         generations = [[Gen()]]
     return Response()
 
-@patch("backend.agent.tools.caption_image.llm")
-@patch("backend.agent.tools.caption_image.store_image", side_effect=mock_store_image)
-@patch("backend.agent.tools.caption_image.UploadFile", side_effect=FakeUploadFile)
+@patch("backend.agent.tools.create_clothing_item.llm")
+@patch("backend.agent.tools.create_clothing_item.store_image", side_effect=mock_store_image)
+@patch("backend.agent.tools.create_clothing_item.UploadFile", side_effect=FakeUploadFile)
 def test_caption_image_local(mock_uploadfile, mock_store, mock_llm, fake_image_bytes, tmp_path):
     # Create a fake local image file
     img_path = tmp_path / "test.jpg"
     img_path.write_bytes(fake_image_bytes)
     
-    result = caption_image._caption_image_impl(str(img_path))
+    result = caption_image(str(img_path), "test_item_id")
     assert "caption" in result
     assert result["caption"].startswith("A mock caption")
     assert result["item_id"]
@@ -46,15 +46,15 @@ def test_caption_image_local(mock_uploadfile, mock_store, mock_llm, fake_image_b
     assert result["metadata"]["filename"] == "test.jpg"
     assert result["metadata"]["source_path"] == str(img_path)
 
-@patch("backend.agent.tools.caption_image.llm")
-@patch("backend.agent.tools.caption_image.store_image", side_effect=mock_store_image)
-@patch("backend.agent.tools.caption_image.UploadFile", side_effect=FakeUploadFile)
+@patch("backend.agent.tools.create_clothing_item.llm")
+@patch("backend.agent.tools.create_clothing_item.store_image", side_effect=mock_store_image)
+@patch("backend.agent.tools.create_clothing_item.UploadFile", side_effect=FakeUploadFile)
 @patch("requests.get")
 def test_caption_image_remote(mock_requests_get, mock_uploadfile, mock_store, mock_llm, fake_image_bytes):
     # Mock requests.get to return fake image bytes
     mock_requests_get.return_value.content = fake_image_bytes
     url = "https://example.com/test.jpg"
-    result = caption_image._caption_image_impl(url, "Describe this shirt.")
+    result = caption_image(url, "test_item_id")
     assert "caption" in result
     assert result["caption"].startswith("A mock caption")
     assert result["item_id"]
@@ -62,12 +62,12 @@ def test_caption_image_remote(mock_requests_get, mock_uploadfile, mock_store, mo
     assert result["metadata"]["filename"] == "test.jpg"
     assert result["metadata"]["source_path"] == url
 
-@patch("backend.agent.tools.caption_image.llm")
-@patch("backend.agent.tools.caption_image.store_image", side_effect=mock_store_image)
-@patch("backend.agent.tools.caption_image.UploadFile", side_effect=FakeUploadFile)
+@patch("backend.agent.tools.create_clothing_item.llm")
+@patch("backend.agent.tools.create_clothing_item.store_image", side_effect=mock_store_image)
+@patch("backend.agent.tools.create_clothing_item.UploadFile", side_effect=FakeUploadFile)
 def test_caption_image_error_handling(mock_uploadfile, mock_store, mock_llm):
     # Pass a non-existent file path to trigger error
-    result = caption_image._caption_image_impl("/nonexistent/path.jpg")
+    result = caption_image("/nonexistent/path.jpg", "test_item_id")
     assert "error" in result
     assert result["caption"].startswith("Error processing image")
     assert result["image_url"] is None
