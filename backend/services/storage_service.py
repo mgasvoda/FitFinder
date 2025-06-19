@@ -16,23 +16,35 @@ from backend.services.image_compression import compress_clothing_image
 
 logger = logging.getLogger(__name__)
 
-# Define the base directory for storing images using configurable path
-BASE_IMAGE_DIR = config.get_images_path()
-
-# Ensure the base directory exists
-os.makedirs(BASE_IMAGE_DIR, exist_ok=True)
-
-# Define subdirectories for different types of images
-CLOTHING_ITEMS_DIR = config.get_images_path("clothing_items")
-OUTFIT_IMAGES_DIR = config.get_images_path("outfits")
-TEMP_UPLOADS_DIR = config.get_images_path("temp")
-
-# Ensure subdirectories exist
-for directory in [CLOTHING_ITEMS_DIR, OUTFIT_IMAGES_DIR, TEMP_UPLOADS_DIR]:
-    os.makedirs(directory, exist_ok=True)
-
 # Allowed image file extensions
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+
+def get_base_image_dir():
+    """Get the base images directory path dynamically"""
+    return config.get_images_path()
+
+def get_clothing_items_dir():
+    """Get the clothing items directory path dynamically"""
+    return config.get_images_path("clothing_items")
+
+def get_outfit_images_dir():
+    """Get the outfit images directory path dynamically"""
+    return config.get_images_path("outfits")
+
+def get_temp_uploads_dir():
+    """Get the temp uploads directory path dynamically"""
+    return config.get_images_path("temp")
+
+def ensure_directories_exist():
+    """Ensure all required directories exist"""
+    directories = [
+        get_base_image_dir(),
+        get_clothing_items_dir(),
+        get_outfit_images_dir(),
+        get_temp_uploads_dir()
+    ]
+    for directory in directories:
+        os.makedirs(directory, exist_ok=True)
 
 def validate_image(file: UploadFile) -> bool:
     """Validate that the uploaded file is an image"""
@@ -41,8 +53,11 @@ def validate_image(file: UploadFile) -> bool:
     if ext not in ALLOWED_EXTENSIONS:
         return False
     
+    # Ensure temp directory exists
+    temp_uploads_dir = get_temp_uploads_dir()
+    
     # Save to temp file for validation
-    temp_file_path = os.path.join(TEMP_UPLOADS_DIR, f"temp_{uuid.uuid4()}{ext}")
+    temp_file_path = os.path.join(temp_uploads_dir, f"temp_{uuid.uuid4()}{ext}")
     
     try:
         # Read the file content
@@ -92,12 +107,16 @@ def store_clothing_image(image: UploadFile, item_id: Optional[str] = None,
     # Always use .jpg extension for compressed images
     ext = ".jpg" if compress else (os.path.splitext(image.filename)[1].lower() if image.filename else ".jpg")
     
+    # Get directory paths dynamically
+    clothing_items_dir = get_clothing_items_dir()
+    temp_uploads_dir = get_temp_uploads_dir()
+    
     # Create the file path
-    file_path = os.path.join(CLOTHING_ITEMS_DIR, f"{item_id}{ext}")
+    file_path = os.path.join(clothing_items_dir, f"{item_id}{ext}")
     
     if compress:
         # Save to temporary file first
-        temp_path = os.path.join(TEMP_UPLOADS_DIR, f"temp_{item_id}{ext}")
+        temp_path = os.path.join(temp_uploads_dir, f"temp_{item_id}{ext}")
         
         try:
             # Save original file temporarily
@@ -106,7 +125,7 @@ def store_clothing_image(image: UploadFile, item_id: Optional[str] = None,
             
             # Compress the image
             compressed_path, size_kb = compress_clothing_image(temp_path, file_path)
-            logger.info(f"Compressed clothing image {item_id}: {size_kb}KB")
+            logger.info(f"Image compressed successfully: {size_kb}KB -> {compressed_path}")
             
             # Clean up temporary file
             if os.path.exists(temp_path):
@@ -149,8 +168,11 @@ def store_outfit_image(image: UploadFile, outfit_id: Optional[str] = None) -> Tu
     # Get file extension
     ext = os.path.splitext(image.filename)[1].lower() if image.filename else ".jpg"
     
+    # Get directory path dynamically
+    outfit_images_dir = get_outfit_images_dir()
+    
     # Create the file path
-    file_path = os.path.join(OUTFIT_IMAGES_DIR, f"{outfit_id}{ext}")
+    file_path = os.path.join(outfit_images_dir, f"{outfit_id}{ext}")
     
     # Save the file
     with open(file_path, "wb") as f:
@@ -175,7 +197,8 @@ def delete_image(image_url: str) -> bool:
     if image_url.startswith("/images/"):
         # Remove the leading "/images/" to get the relative path
         relative_path = image_url[8:]
-        absolute_path = os.path.join(BASE_IMAGE_DIR, relative_path)
+        base_image_dir = get_base_image_dir()
+        absolute_path = os.path.join(base_image_dir, relative_path)
         
         # Check if file exists
         if os.path.exists(absolute_path):
@@ -197,7 +220,8 @@ def get_absolute_path(image_url: str) -> Optional[str]:
     if image_url.startswith("/images/"):
         # Remove the leading "/images/" to get the relative path
         relative_path = image_url[8:]
-        absolute_path = os.path.join(BASE_IMAGE_DIR, relative_path)
+        base_image_dir = get_base_image_dir()
+        absolute_path = os.path.join(base_image_dir, relative_path)
         
         if os.path.exists(absolute_path):
             return absolute_path
@@ -212,8 +236,9 @@ def list_clothing_images() -> List[Dict[str, Any]]:
         List of dictionaries with image_url and item_id
     """
     images = []
+    clothing_items_dir = get_clothing_items_dir()
     
-    for filename in os.listdir(CLOTHING_ITEMS_DIR):
+    for filename in os.listdir(clothing_items_dir):
         if os.path.splitext(filename)[1].lower() in ALLOWED_EXTENSIONS:
             item_id = os.path.splitext(filename)[0]
             image_url = f"/images/clothing_items/{filename}"
@@ -229,8 +254,9 @@ def list_outfit_images() -> List[Dict[str, Any]]:
         List of dictionaries with image_url and outfit_id
     """
     images = []
+    outfit_images_dir = get_outfit_images_dir()
     
-    for filename in os.listdir(OUTFIT_IMAGES_DIR):
+    for filename in os.listdir(outfit_images_dir):
         if os.path.splitext(filename)[1].lower() in ALLOWED_EXTENSIONS:
             outfit_id = os.path.splitext(filename)[0]
             image_url = f"/images/outfits/{filename}"

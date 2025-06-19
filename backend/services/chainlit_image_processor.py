@@ -16,13 +16,14 @@ from backend.config import config
 
 logger = logging.getLogger(__name__)
 
-# Define directories
-CLOTHING_ITEMS_DIR = config.get_images_path("clothing_items")
-TEMP_UPLOADS_DIR = config.get_images_path("temp")
+# Dynamic path getters
+def get_clothing_items_dir():
+    """Get clothing items directory path dynamically"""
+    return config.get_images_path("clothing_items")
 
-# Ensure directories exist
-for directory in [CLOTHING_ITEMS_DIR, TEMP_UPLOADS_DIR]:
-    os.makedirs(directory, exist_ok=True)
+def get_temp_uploads_dir():
+    """Get temp uploads directory path dynamically"""
+    return config.get_images_path("temp")
 
 def process_chainlit_image(element: cl.File, 
                           item_id: Optional[str] = None,
@@ -50,8 +51,9 @@ def process_chainlit_image(element: cl.File,
     if not ext:
         ext = ".jpg"
     
-    # Create the final file path
-    final_path = os.path.join(CLOTHING_ITEMS_DIR, f"{item_id}{ext}")
+    # Get directory path dynamically and create the final file path
+    clothing_items_dir = get_clothing_items_dir()
+    final_path = os.path.join(clothing_items_dir, f"{item_id}{ext}")
     
     try:
         if compress:

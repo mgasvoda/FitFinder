@@ -9,10 +9,13 @@ from pydantic import BaseModel
 from backend.config import config
 
 # Define the path for ChromaDB persistent storage using configurable path
-CHROMA_DB_PATH = config.get_chroma_path()
+def get_chroma_client():
+    """Get ChromaDB client with dynamic path resolution"""
+    chroma_db_path = config.get_chroma_path()
+    return chromadb.PersistentClient(path=chroma_db_path)
 
 # Initialize ChromaDB client with persistent storage
-client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
+client = get_chroma_client()
 
 clothing_collection = None
 outfit_collection = None

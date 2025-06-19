@@ -11,9 +11,13 @@ import os
 # Import the config for configurable data paths
 from backend.config import config
 
-# SQLAlchemy setup using configurable paths
-SQLITE_DB_PATH = config.get_sqlite_path()
-DATABASE_URL = f"sqlite:///{SQLITE_DB_PATH.replace(os.sep, '/')}"
+# SQLAlchemy setup using configurable paths - get paths dynamically
+def get_database_url():
+    """Get database URL dynamically to avoid import timing issues"""
+    sqlite_db_path = config.get_sqlite_path()
+    return f"sqlite:///{sqlite_db_path.replace(os.sep, '/')}"
+
+DATABASE_URL = get_database_url()
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
