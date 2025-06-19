@@ -4,7 +4,7 @@ Pure agent functionality without FastAPI dependencies
 """
 
 from backend.agent.tools import get_clothing_items, create_clothing_item, get_outfit, create_outfit
-from langfuse.callback import CallbackHandler
+from langfuse.langchain import CallbackHandler
 from typing import TypedDict, Annotated
 from langgraph.graph.message import add_messages
 from langgraph.graph import StateGraph
@@ -12,6 +12,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.prebuilt import tools_condition, ToolNode
 from langgraph.graph import START
 from langchain_anthropic import ChatAnthropic
+from backend.config import config
 
 import logging
 import os
@@ -26,12 +27,16 @@ logger.info('Loading FitFinder agent core')
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-# Optional: Enable Langfuse tracing
-# langfuse_handler = CallbackHandler(
-#     public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-#     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-#     host="https://us.cloud.langfuse.com"
-# )
+# Initialize Langfuse CallbackHandler for better tracing
+langfuse_handler = None
+try:
+    if config.LANGFUSE_PUBLIC_KEY and config.LANGFUSE_SECRET_KEY:
+        langfuse_handler = CallbackHandler()
+        logger.info("Langfuse CallbackHandler initialized successfully for agent core")
+    else:
+        logger.info("Langfuse credentials not found, proceeding without tracing")
+except Exception as e:
+    logger.warning(f"Failed to initialize Langfuse CallbackHandler in agent core: {e}")
 
 # Define the system prompt
 SYSTEM_PROMPT = """You are FitFinder, an AI fashion assistant that helps users manage their wardrobe and create outfits. 
@@ -62,7 +67,11 @@ def create_agent():
     llm_with_tools = llm.bind_tools(tools)
 
     def chatbot(state: State):
-        return {"messages": [llm_with_tools.invoke(state["messages"])]}
+        # Use Langfuse callback if available for better tracing
+        if langfuse_handler:
+            return {"messages": [llm_with_tools.invoke(state["messages"], config={"callbacks": [langfuse_handler]})]}
+        else:
+            return {"messages": [llm_with_tools.invoke(state["messages"])]}
 
     graph_builder.add_node("chatbot", chatbot)
 
@@ -84,10 +93,16 @@ def create_agent():
 agent = create_agent()
 
 # Initialize the agent with the system prompt
-agent.invoke(
-    {"messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Hello"}]}, 
-    config={"configurable": {"thread_id": 1}}
-)
+if langfuse_handler:
+    agent.invoke(
+        {"messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Hello"}]}, 
+        config={"configurable": {"thread_id": 1}, "callbacks": [langfuse_handler]}
+    )
+else:
+    agent.invoke(
+        {"messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Hello"}]}, 
+        config={"configurable": {"thread_id": 1}}
+    )
 
 def stream_graph_updates(user_input: str):
     """
@@ -100,10 +115,17 @@ def stream_graph_updates(user_input: str):
         str: The agent's response
     """
     try:
-        result = agent.invoke(
-            {"messages": [{"role": "user", "content": user_input}]}, 
-            config={"configurable": {"thread_id": 1}}
-        )
+        # Use Langfuse callback if available for better tracing
+        if langfuse_handler:
+            result = agent.invoke(
+                {"messages": [{"role": "user", "content": user_input}]}, 
+                config={"configurable": {"thread_id": 1}, "callbacks": [langfuse_handler]}
+            )
+        else:
+            result = agent.invoke(
+                {"messages": [{"role": "user", "content": user_input}]}, 
+                config={"configurable": {"thread_id": 1}}
+            )
         
         response = result['messages'][-1].content
         return response

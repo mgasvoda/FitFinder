@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
+from langfuse.langchain import CallbackHandler
 
 from fastapi import UploadFile
 from pathlib import Path
@@ -9,6 +10,7 @@ from backend.db import crud
 from backend.db.models import SessionLocal
 from backend.services.embedding_service import get_text_embedding
 from backend.services.storage_service import store_clothing_image
+from backend.config import config
 
 import io
 import uuid
@@ -23,6 +25,17 @@ logging.basicConfig(level=logging.INFO)
 # Instantiate the Claude 3.5 Haiku model
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 llm = ChatAnthropic(model="claude-3-5-haiku-latest", anthropic_api_key=ANTHROPIC_API_KEY)
+
+# Initialize Langfuse CallbackHandler for better tracing
+langfuse_handler = None
+try:
+    if config.LANGFUSE_PUBLIC_KEY and config.LANGFUSE_SECRET_KEY:
+        langfuse_handler = CallbackHandler()
+        logger.info("Langfuse CallbackHandler initialized successfully")
+    else:
+        logger.info("Langfuse credentials not found, proceeding without tracing")
+except Exception as e:
+    logger.warning(f"Failed to initialize Langfuse CallbackHandler: {e}")
 
 @tool("Create_clothing_item", parse_docstring=True)
 def create_clothing_item(image_url: str) -> dict:
@@ -60,6 +73,31 @@ def caption_image(image_url: str, item_id: str) -> dict:
         A dictionary containing the caption, category, and image metadata.
     """
     logger.info(f"Captioning and categorizing image from source: {image_url}")
+
+    # Fix path issue: convert relative URLs to absolute paths
+    # This handles cases where the LLM provides relative URLs like "/images/clothing_items/filename.jpg"
+    # instead of absolute paths like "/mnt/fitfinder/images/clothing_items/filename.jpg"
+    if not (image_url.startswith("http://") or image_url.startswith("https://")):
+        # Check if it's a relative URL format
+        if image_url.startswith("/images/"):
+            # Use the storage service to convert relative URL to absolute path
+            from backend.services.storage_service import get_absolute_path
+            absolute_path = get_absolute_path(image_url)
+            if absolute_path and os.path.exists(absolute_path):
+                logger.info(f"Converted relative URL '{image_url}' to absolute path '{absolute_path}'")
+                image_url = absolute_path
+            else:
+                logger.error(f"Could not find image at relative URL: {image_url}")
+                # Still try to process, might be a different relative path
+        
+        # Check if path starts with DATA_PATH, if not, prepend it
+        data_path = config.get_data_path_env()
+        if not image_url.startswith(data_path):
+            # Remove leading slash if present to avoid double slashes
+            clean_image_url = image_url.lstrip('/')
+            corrected_image_url = os.path.join(data_path, clean_image_url)
+            logger.info(f"Corrected image path from '{image_url}' to '{corrected_image_url}'")
+            image_url = corrected_image_url
 
     default_prompt = (
         "Generate a descriptive caption for the clothing item in this image. "
@@ -101,9 +139,15 @@ def caption_image(image_url: str, item_id: str) -> dict:
             {"type": "text", "text": default_prompt}
         ]
         
-        # Get caption and category from Claude
+        # Get caption and category from Claude with Langfuse tracing
         human_msg = HumanMessage(content=content)
-        response = llm.generate([[human_msg]])
+        
+        # Use Langfuse callback if available for better tracing
+        if langfuse_handler:
+            response = llm.generate([[human_msg]], config={"callbacks": [langfuse_handler]})
+        else:
+            response = llm.generate([[human_msg]])
+            
         llm_output = response.generations[0][0].text.strip()
         logger.info(f"LLM Output:\n{llm_output}")
 

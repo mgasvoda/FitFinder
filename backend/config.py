@@ -39,6 +39,7 @@ class Config:
     # Optional: Langfuse tracing (if enabled)
     LANGFUSE_PUBLIC_KEY: str = os.getenv("LANGFUSE_PUBLIC_KEY", "")
     LANGFUSE_SECRET_KEY: str = os.getenv("LANGFUSE_SECRET_KEY", "")
+    LANGFUSE_HOST: str = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
     
     # Chainlit server settings
     CHAINLIT_HOST: str = os.getenv("CHAINLIT_HOST", "0.0.0.0")
