@@ -8,16 +8,19 @@ from typing import Tuple, List, Dict, Any, Optional
 import filetype
 from pathlib import Path
 
-# Define the base directory for storing images
-BASE_IMAGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../images")
+# Import the config for configurable data paths
+from backend.config import config
+
+# Define the base directory for storing images using configurable path
+BASE_IMAGE_DIR = config.get_images_path()
 
 # Ensure the base directory exists
 os.makedirs(BASE_IMAGE_DIR, exist_ok=True)
 
 # Define subdirectories for different types of images
-CLOTHING_ITEMS_DIR = os.path.join(BASE_IMAGE_DIR, "clothing_items")
-OUTFIT_IMAGES_DIR = os.path.join(BASE_IMAGE_DIR, "outfits")
-TEMP_UPLOADS_DIR = os.path.join(BASE_IMAGE_DIR, "temp")
+CLOTHING_ITEMS_DIR = config.get_images_path("clothing_items")
+OUTFIT_IMAGES_DIR = config.get_images_path("outfits")
+TEMP_UPLOADS_DIR = config.get_images_path("temp")
 
 # Ensure subdirectories exist
 for directory in [CLOTHING_ITEMS_DIR, OUTFIT_IMAGES_DIR, TEMP_UPLOADS_DIR]:

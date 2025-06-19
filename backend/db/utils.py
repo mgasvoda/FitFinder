@@ -1,11 +1,13 @@
 import os
 import shutil
 
-# Paths (relative to the backend directory)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SQLITE_DB_PATH = os.path.join(BASE_DIR, 'fitfinder.db')
-CHROMA_DB_PATH = os.path.join(BASE_DIR, 'chroma_db')
-IMAGES_PATH = os.path.join(BASE_DIR, 'images')
+# Import the config for configurable data paths
+from backend.config import config
+
+# Paths using configurable data directory
+SQLITE_DB_PATH = config.get_sqlite_path()
+CHROMA_DB_PATH = config.get_chroma_path()
+IMAGES_PATH = config.get_images_path()
 
 def reset_backend_data():
     """
@@ -33,9 +35,10 @@ def reset_backend_data():
     else:
         print(f"Images directory not found: {IMAGES_PATH}")
 
-    # Recreate empty directories
-    os.makedirs(CHROMA_DB_PATH, exist_ok=True)
-    os.makedirs(IMAGES_PATH, exist_ok=True)
+    # Recreate empty directories using the config methods
+    # These methods automatically create directories as needed
+    config.get_chroma_path()
+    config.get_images_path()
     print("Recreated chroma_db and images directories.")
 
 if __name__ == "__main__":

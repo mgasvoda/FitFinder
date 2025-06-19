@@ -8,9 +8,11 @@ import datetime
 import uuid
 import os
 
-# SQLAlchemy setup
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SQLITE_DB_PATH = os.path.join(BASE_DIR, 'fitfinder.db')
+# Import the config for configurable data paths
+from backend.config import config
+
+# SQLAlchemy setup using configurable paths
+SQLITE_DB_PATH = config.get_sqlite_path()
 DATABASE_URL = f"sqlite:///{SQLITE_DB_PATH.replace(os.sep, '/')}"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -174,6 +176,5 @@ def generate_id():
     return str(uuid.uuid4())
 
 def get_image_path(item_id: str, file_extension: str):
-    # Ensure the images directory exists
-    os.makedirs("images", exist_ok=True)
-    return f"images/{item_id}{file_extension}"
+    # Use the configurable images path
+    return config.get_images_path(f"{item_id}{file_extension}")

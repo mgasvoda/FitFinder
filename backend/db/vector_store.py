@@ -5,11 +5,11 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 from pydantic import BaseModel
 
-# Define the path for ChromaDB persistent storage
-CHROMA_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../chroma_db")
+# Import the config for configurable data paths
+from backend.config import config
 
-# Ensure the directory exists
-os.makedirs(CHROMA_DB_PATH, exist_ok=True)
+# Define the path for ChromaDB persistent storage using configurable path
+CHROMA_DB_PATH = config.get_chroma_path()
 
 # Initialize ChromaDB client with persistent storage
 client = chromadb.PersistentClient(path=CHROMA_DB_PATH)

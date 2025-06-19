@@ -116,8 +116,16 @@ def initialize_agent_resources():
     """Initialize database and vector store resources for the agent"""
     from backend.db.models import Base, engine
     from backend.db import vector_store
+    from backend.config import config
     
     logger.info("Initializing agent resources...")
+    
+    # Log data paths for debugging
+    logger.info(f"Data paths configured:")
+    logger.info(f"  DATA_PATH: {config.DATA_PATH}")
+    logger.info(f"  SQLite: {config.get_sqlite_path()}")
+    logger.info(f"  ChromaDB: {config.get_chroma_path()}")
+    logger.info(f"  Images: {config.get_images_path()}")
     
     # Initialize database
     Base.metadata.create_all(bind=engine)
