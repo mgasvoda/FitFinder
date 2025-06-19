@@ -91,7 +91,12 @@ def test_create_clothing_item_tool_fixed():
     
     with patch("backend.agent.tools.create_clothing_item.caption_image") as mock_caption, \
          patch("backend.agent.tools.create_clothing_item.embed_step") as mock_embed, \
-         patch("backend.agent.tools.create_clothing_item.persist_db_step") as mock_persist:
+         patch("backend.agent.tools.create_clothing_item.persist_db_step") as mock_persist, \
+         patch("backend.agent.tools.create_clothing_item.uuid.uuid4") as mock_uuid:
+        
+        # Mock UUID generation to return expected test ID
+        mock_uuid.return_value.hex = "test-item-123"
+        mock_uuid.return_value.__str__ = lambda self: "test-item-123"
         
         # Setup mock returns
         mock_caption.return_value = {

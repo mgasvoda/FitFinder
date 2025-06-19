@@ -20,9 +20,13 @@ def fake_file_path(tmp_path):
     return str(file_path)
 
 @patch("backend.services.storage_service.validate_image", return_value=True)
+@patch("backend.services.storage_service.compress_clothing_image")
 @patch("backend.services.storage_service.os.makedirs")
 @patch("backend.services.storage_service.shutil.copyfileobj")
-def test_store_image_with_uploadfile(mock_copyfile, mock_makedirs, mock_validate, fake_upload_file):
+def test_store_image_with_uploadfile(mock_copyfile, mock_makedirs, mock_compress, mock_validate, fake_upload_file):
+    # Mock the compression function to return a path and size
+    mock_compress.return_value = ("./images/clothing_items/item123.jpg", 150)
+    
     result = store_clothing_image(fake_upload_file, "item123")
     # Check that the result contains expected patterns
     assert result[1] == "item123"  # item_id should match
@@ -30,9 +34,13 @@ def test_store_image_with_uploadfile(mock_copyfile, mock_makedirs, mock_validate
     mock_validate.assert_called_once()
 
 @patch("backend.services.storage_service.validate_image", return_value=True)
+@patch("backend.services.storage_service.compress_clothing_image")
 @patch("backend.services.storage_service.os.makedirs")
 @patch("backend.services.storage_service.shutil.copyfileobj")
-def test_store_image_with_filepath(mock_copyfile, mock_makedirs, mock_validate, fake_file_path):
+def test_store_image_with_filepath(mock_copyfile, mock_makedirs, mock_compress, mock_validate, fake_file_path):
+    # Mock the compression function to return a path and size
+    mock_compress.return_value = ("./images/clothing_items/item456.jpg", 120)
+    
     # Create UploadFile from filepath
     with open(fake_file_path, 'rb') as f:
         file_obj = io.BytesIO(f.read())
