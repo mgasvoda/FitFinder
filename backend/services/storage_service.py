@@ -7,9 +7,14 @@ from fastapi import UploadFile, HTTPException
 from typing import Tuple, List, Dict, Any, Optional
 import filetype
 from pathlib import Path
+import logging
 
 # Import the config for configurable data paths
 from backend.config import config
+# Import image compression functionality
+from backend.services.image_compression import compress_clothing_image
+
+logger = logging.getLogger(__name__)
 
 # Define the base directory for storing images using configurable path
 BASE_IMAGE_DIR = config.get_images_path()
@@ -64,13 +69,15 @@ def validate_image(file: UploadFile) -> bool:
             os.remove(temp_file_path)
         return False
 
-def store_clothing_image(image: UploadFile, item_id: Optional[str] = None) -> Tuple[str, str]:
+def store_clothing_image(image: UploadFile, item_id: Optional[str] = None, 
+                        compress: bool = True) -> Tuple[str, str]:
     """
-    Store a clothing item image in the filesystem
+    Store a clothing item image in the filesystem with optional compression
     
     Args:
         image: The uploaded image file
         item_id: Optional item ID (generated if not provided)
+        compress: Whether to compress the image (default: True)
         
     Returns:
         Tuple of (image_url, item_id)
@@ -82,15 +89,39 @@ def store_clothing_image(image: UploadFile, item_id: Optional[str] = None) -> Tu
     if not item_id:
         item_id = str(uuid.uuid4())
     
-    # Get file extension
-    ext = os.path.splitext(image.filename)[1].lower() if image.filename else ".jpg"
+    # Always use .jpg extension for compressed images
+    ext = ".jpg" if compress else (os.path.splitext(image.filename)[1].lower() if image.filename else ".jpg")
     
     # Create the file path
     file_path = os.path.join(CLOTHING_ITEMS_DIR, f"{item_id}{ext}")
     
-    # Save the file
-    with open(file_path, "wb") as f:
-        shutil.copyfileobj(image.file, f)
+    if compress:
+        # Save to temporary file first
+        temp_path = os.path.join(TEMP_UPLOADS_DIR, f"temp_{item_id}{ext}")
+        
+        try:
+            # Save original file temporarily
+            with open(temp_path, "wb") as f:
+                shutil.copyfileobj(image.file, f)
+            
+            # Compress the image
+            compressed_path, size_kb = compress_clothing_image(temp_path, file_path)
+            logger.info(f"Compressed clothing image {item_id}: {size_kb}KB")
+            
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+        except Exception as e:
+            # Clean up temporary file on error
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            logger.error(f"Error compressing image {item_id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to process image")
+    else:
+        # Save the file without compression
+        with open(file_path, "wb") as f:
+            shutil.copyfileobj(image.file, f)
     
     # Return the relative URL and item ID
     relative_url = f"/images/clothing_items/{item_id}{ext}"

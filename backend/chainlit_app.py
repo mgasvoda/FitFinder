@@ -12,6 +12,9 @@ from backend.agent.agent_core import stream_graph_updates, initialize_agent_reso
 import backend.auth.chainlit_auth
 from backend.auth.chainlit_auth import get_current_user
 
+# Import image processing functionality
+from backend.services.chainlit_image_processor import process_chainlit_image, get_image_info
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,21 +39,33 @@ async def main(message: cl.Message):
             logger.info(f"Found {len(message.elements)} attachments")
             
             # Show typing indicator with step
-            async with cl.Step(name="📸 Processing image...") as step:
+            async with cl.Step(name="📸 Processing and compressing image...") as step:
                 for element in message.elements:
                     if hasattr(element, 'path') and element.path:
                         logger.info(f"Processing image: {element.path}")
                         try:
-                            # Use the agent functionality to create clothing item from image
-                            user_input = f"Please create a clothing item from this image: {element.path}"
+                            # Process and compress the uploaded image
+                            image_url, item_id, size_kb = process_chainlit_image(element, compress=True)
+                            
+                            # Get image info for user feedback
+                            image_info = get_image_info(element.path)
+                            original_size = image_info.get('size_kb', 0) if image_info.get('exists') else 0
+                            
+                            step_msg = f"Image compressed: {original_size}KB → {size_kb}KB ✅"
+                            step.output = step_msg
+                            
+                            # Use the agent functionality to create clothing item from compressed image
+                            user_input = f"Please create a clothing item from this compressed image: {image_url}"
                             if message.content.strip():
                                 user_input += f" User notes: {message.content}"
                             
                             response = stream_graph_updates(user_input)
                             
                             if response and response.strip():
-                                step.output = "Image processed successfully ✅"
-                                await cl.Message(content=response).send()
+                                # Add compression info to the response
+                                compression_info = f"\n\n💾 *Image processed: {size_kb}KB (compressed from {original_size}KB)*"
+                                full_response = response + compression_info
+                                await cl.Message(content=full_response).send()
                             else:
                                 step.output = "Failed to process image ⚠️"
                                 await cl.Message(
