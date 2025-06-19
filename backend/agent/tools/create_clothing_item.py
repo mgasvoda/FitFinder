@@ -77,6 +77,7 @@ def caption_image(image_url: str, item_id: str) -> dict:
     # Fix path issue: convert relative URLs to absolute paths
     # This handles cases where the LLM provides relative URLs like "/images/clothing_items/filename.jpg"
     # instead of absolute paths like "/mnt/fitfinder/images/clothing_items/filename.jpg"
+    original_image_url = image_url
     if not (image_url.startswith("http://") or image_url.startswith("https://")):
         # Check if it's a relative URL format
         if image_url.startswith("/images/"):
@@ -120,17 +121,25 @@ def caption_image(image_url: str, item_id: str) -> dict:
         
         logger.info(f"Successfully loaded image: {filename} ({len(img_bytes)} bytes)")
         
-        # Save the image immediately using the store_image function
-        # Create a UploadFile object that the storage function expects
-        file_obj = io.BytesIO(img_bytes)
-        upload_file = UploadFile(
-            filename=filename,
-            file=file_obj
-        )
-        
-        # Store the image and get the saved URL
-        saved_image_url, saved_item_id = store_image(upload_file, item_id)
-        logger.info(f"Image saved with ID {saved_item_id} at {saved_image_url}")
+        # Check if the image was already saved (indicated by original_image_url being a relative URL)
+        # If it was already saved, use the original URL instead of saving again
+        if original_image_url.startswith("/images/"):
+            # Image was already saved, use the original relative URL
+            saved_image_url = original_image_url
+            saved_item_id = item_id
+            logger.info(f"Using existing saved image at {saved_image_url}")
+        else:
+            # Image needs to be saved
+            # Create a UploadFile object that the storage function expects
+            file_obj = io.BytesIO(img_bytes)
+            upload_file = UploadFile(
+                filename=filename,
+                file=file_obj
+            )
+            
+            # Store the image and get the saved URL
+            saved_image_url, saved_item_id = store_image(upload_file, item_id)
+            logger.info(f"Image saved with ID {saved_item_id} at {saved_image_url}")
         
         # Generate caption using base64-encoded image
         img_base64 = base64.b64encode(img_bytes).decode()
@@ -143,12 +152,13 @@ def caption_image(image_url: str, item_id: str) -> dict:
         human_msg = HumanMessage(content=content)
         
         # Use Langfuse callback if available for better tracing
+        # Fixed syntax for newer LangChain versions
         if langfuse_handler:
-            response = llm.generate([[human_msg]], config={"callbacks": [langfuse_handler]})
+            response = llm.invoke([human_msg], config={"callbacks": [langfuse_handler]})
         else:
-            response = llm.generate([[human_msg]])
+            response = llm.invoke([human_msg])
             
-        llm_output = response.generations[0][0].text.strip()
+        llm_output = response.content.strip()
         logger.info(f"LLM Output:\n{llm_output}")
 
         # Parse caption and category
@@ -188,13 +198,14 @@ def caption_image(image_url: str, item_id: str) -> dict:
             "image_url": saved_image_url,
             "metadata": {
                 "filename": filename,
-                "source_path": image_url,
+                "source_path": original_image_url,
             }
         }
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
         return {
             "caption": "Error processing image: " + str(e),
+            "category": "accessories",  # Add default category for error cases
             "error": str(e),
             "item_id": item_id,
             "image_url": None
